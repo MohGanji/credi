@@ -9,6 +9,7 @@
 # testing
 /coverage
 *.lcov
+.tap/
 
 # next.js
 /.next/
@@ -104,3 +105,10 @@ storybook-static
 # Temporary folders
 tmp/
 temp/
+
+/app/generated/prisma
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3

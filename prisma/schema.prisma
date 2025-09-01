@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Analysis {
+  id          String   @id @default(cuid())
+  profileUrl  String   // Removed unique constraint - multiple analyses per profile allowed
+  platform    String
+  username    String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  requestedBy String?  // Optional field for future use
+  
+  // Overview data
+  sampledPosts Int
+  crediScore   Float
+  focusAreas   Json // Array of focus areas stored as JSON
+  
+  // Strengths (JSON field)
+  strengths Json
+  
+  // Criteria evaluation results (JSON field)
+  criteriaEvaluation Json
+  
+  // Representative posts (JSON field)
+  representativePosts Json
+  
+  // Score justification (JSON field)
+  scoreJustification Json
+  
+  // Metadata
+  processingTimeMs Int?
+  modelUsed       String?
+  tokensUsed      Int?
+  
+  @@map("analyses")
+}
