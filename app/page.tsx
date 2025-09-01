@@ -1,15 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-
-interface ValidationResult {
-  isValid: boolean;
-  platform?: 'twitter' | 'linkedin';
-  error?: string;
-}
+import { 
+  validateSocialMediaUrl, 
+  getPlatformInfo, 
+  type ValidationResult, 
+  type PlatformInfo,
+  type SupportedPlatform 
+} from './lib/validation';
 
 interface ProfilePreview {
-  platform: 'twitter' | 'linkedin';
+  platform: SupportedPlatform;
   username: string;
   displayName: string;
   profileTitle: string;
@@ -20,90 +21,62 @@ interface ProfilePreview {
 export default function Home() {
   const [url, setUrl] = useState('');
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [platformInfo, setPlatformInfo] = useState<PlatformInfo | null>(null);
   const [profilePreview, setProfilePreview] = useState<ProfilePreview | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState<string>('');
 
-  const validateUrl = (inputUrl: string): ValidationResult => {
-    if (!inputUrl.trim()) {
-      return { isValid: false, error: 'Please enter a URL' };
-    }
-
-    // Twitter/X URL validation
-    const twitterRegex = /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/?$/;
-    if (twitterRegex.test(inputUrl)) {
-      return { isValid: true, platform: 'twitter' };
-    }
-
-    // LinkedIn URL validation
-    const linkedinRegex = /^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+\/?$/;
-    if (linkedinRegex.test(inputUrl)) {
-      return { isValid: true, platform: 'linkedin' };
-    }
-
-    return {
-      isValid: false,
-      error: 'Please enter a valid Twitter or LinkedIn profile URL'
-    };
-  };
+  // Use the validation function from lib/validation.ts
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;
     setUrl(newUrl);
     
     if (newUrl.trim()) {
-      const result = validateUrl(newUrl);
+      const result = validateSocialMediaUrl(newUrl);
       setValidationResult(result);
       
-      if (!result.isValid) {
+      if (result.isValid) {
+        // Get detailed platform info for valid URLs
+        const info = getPlatformInfo(newUrl);
+        setPlatformInfo(info);
+      } else {
+        setPlatformInfo(null);
         setProfilePreview(null);
       }
     } else {
       setValidationResult(null);
+      setPlatformInfo(null);
       setProfilePreview(null);
     }
   };
 
-  const extractProfileInfo = async (url: string, platform: 'twitter' | 'linkedin'): Promise<ProfilePreview> => {
+  const extractProfileInfo = async (url: string, platform: SupportedPlatform): Promise<ProfilePreview> => {
     setCurrentStage('Credi is verifying that the page is public');
     await new Promise(resolve => setTimeout(resolve, 500));
     
     setCurrentStage('Credi is extracting profile information');
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    let username = '';
+    // Use the platform info from validation functions
+    const platformInfo = getPlatformInfo(url);
+    if (!platformInfo) {
+      throw new Error('Unable to extract platform information');
+    }
+
+    const { username } = platformInfo;
     let displayName = '';
     let profileTitle = '';
     let profilePicture = '';
 
     if (platform === 'twitter') {
-      const match = url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/);
-      username = match ? match[1] : '';
       displayName = `@${username}`;
       profileTitle = `${username}'s Twitter Profile`;
-      
-      // Try to fetch profile picture from Twitter API or fallback to a placeholder
-      try {
-        // In a real implementation, this would call Twitter API
-        // For now, we'll use a placeholder that represents a Twitter profile
-        profilePicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=1da1f2&color=fff&size=128&bold=true`;
-      } catch (error) {
-        profilePicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=1da1f2&color=fff&size=128&bold=true`;
-      }
+      profilePicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=1da1f2&color=fff&size=128&bold=true`;
     } else if (platform === 'linkedin') {
-      const match = url.match(/linkedin\.com\/in\/([a-zA-Z0-9-]+)/);
-      username = match ? match[1] : '';
       displayName = username.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
       profileTitle = `${displayName}'s LinkedIn Profile`;
-      
-      // Try to fetch profile picture from LinkedIn or fallback to a placeholder
-      try {
-        // In a real implementation, this would call LinkedIn API
-        // For now, we'll use a placeholder that represents a LinkedIn profile
-        profilePicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0077b5&color=fff&size=128&bold=true`;
-      } catch (error) {
-        profilePicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0077b5&color=fff&size=128&bold=true`;
-      }
+      profilePicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0077b5&color=fff&size=128&bold=true`;
     }
 
     return {
@@ -119,7 +92,7 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const result = validateUrl(url);
+    const result = validateSocialMediaUrl(url);
     setValidationResult(result);
     
     if (!result.isValid || !result.platform) {
@@ -178,7 +151,8 @@ export default function Home() {
                 onChange={handleUrlChange}
                 placeholder="https://twitter.com/username or https://linkedin.com/in/username"
                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  validationResult?.isValid === false ? 'border-red-300' : 'border-gray-300'
+                  validationResult?.isValid === false ? 'border-red-300' : 
+                  validationResult?.isValid === true ? 'border-green-300' : 'border-gray-300'
                 }`}
                 disabled={isLoading}
               />
@@ -191,9 +165,45 @@ export default function Home() {
               )}
             </div>
             
+            {/* Real-time Validation Feedback */}
+            {validationResult?.isValid && platformInfo && (
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-800">
+                      {platformInfo.platform === 'twitter' ? 'Twitter/X' : 'LinkedIn'} profile detected
+                    </p>
+                    <p className="text-sm text-green-700">
+                      Username: <span className="font-mono">{platformInfo.username}</span>
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      Normalized URL: <span className="font-mono">{platformInfo.normalizedUrl}</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Validation Error */}
             {validationResult?.error && (
-              <p className="mt-2 text-sm text-red-600">{validationResult.error}</p>
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-800">Invalid URL</p>
+                    <p className="text-sm text-red-700">{validationResult.error}</p>
+                  </div>
+                </div>
+              </div>
             )}
             
             {/* Loading State */}
