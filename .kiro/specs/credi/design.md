@@ -403,7 +403,10 @@ interface ContentAnalyzerAgent {
 }
 
 class ZenConsensusAnalyzer implements ContentAnalyzerAgent {
-  constructor(private zenMCPClient: ZenMCPClient) {}
+  constructor(
+    private zenMCPClient: ZenMCPClient,
+    private promptTemplate: string = process.env.CREDI_ANALYSIS_PROMPT || ''
+  ) {}
   
   async analyzeProfile(posts: Post[], profileInfo: ProfileInfo): Promise<AnalysisResult> {
     const analysisPrompt = this.buildAnalysisPrompt(posts, profileInfo)
@@ -425,49 +428,26 @@ class ZenConsensusAnalyzer implements ContentAnalyzerAgent {
   }
   
   private buildAnalysisPrompt(posts: Post[], profileInfo: ProfileInfo): string {
-    return `
-Analyze this social media profile for credibility based on the following criteria:
-
-Profile Information:
-- Username: ${profileInfo.username}
-- Display Name: ${profileInfo.displayName}
-- Bio: ${profileInfo.bio}
-- Verified: ${profileInfo.verified}
-
-Posts to analyze (${posts.length} total):
-${posts.map((post, i) => `
+    if (!this.promptTemplate) {
+      throw new Error('CREDI_ANALYSIS_PROMPT environment variable is required')
+    }
+    
+    // Replace template variables with actual data
+    return this.promptTemplate
+      .replace('{{username}}', profileInfo.username)
+      .replace('{{displayName}}', profileInfo.displayName)
+      .replace('{{bio}}', profileInfo.bio)
+      .replace('{{verified}}', profileInfo.verified.toString())
+      .replace('{{postCount}}', posts.length.toString())
+      .replace('{{posts}}', this.formatPosts(posts))
+  }
+  
+  private formatPosts(posts: Post[]): string {
+    return posts.map((post, i) => `
 Post ${i + 1} (${post.timestamp}):
 ${post.content}
 ${post.links.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
-`).join('\n')}
-
-Evaluate against these 8 credibility criteria:
-
-1. **Unnecessary Complexity**: Does the content use overly complex language when simple would suffice? Look for jargon without explanation or academic-style writing in popular content.
-
-2. **Proprietary/Pushy Selling**: How frequently does the content promote products/services? Are there claims of proprietary methods? What's the ratio of sales-focused vs educational content?
-
-3. **Us vs Them Framing**: Does the content create artificial conflicts or position against other groups/methods? Look for tribal or divisive language patterns.
-
-4. **Overselling Narrow Interventions**: Are there claims that specific approaches can solve many different problems? Look for promises of big results across multiple domains.
-
-5. **Emotion/Story vs Data**: Does the content rely more on emotional appeals and stories than on research and data? Are narratives replacing evidence?
-
-6. **Lack of Sourcing**: Are research-backed claims properly cited? Is there openness to scrutiny and source verification?
-
-7. **Serial Contrarian**: Does the person consistently go against established wisdom just for the sake of being different?
-
-8. **Guru Syndrome**: Does the figure lack humility, never address how they might be wrong, or claim expertise beyond their domain?
-
-Provide:
-- A credibility score from 0-10 (where 0 = completely unreliable, 10 = highly credible)
-- Evaluation for each of the 8 criteria (pass/warning/fail with examples)
-- Key strengths of the profile
-- Representative posts that illustrate the analysis
-- Justification for why the score isn't higher or lower
-
-Format your response as structured JSON that can be parsed programmatically.
-    `
+`).join('\n')
   }
   
   private parseConsensusResult(
@@ -533,11 +513,94 @@ interface ConsensusResponse {
 }
 ```
 
+**Environment Variable Configuration**
+```typescript
+interface PromptConfig {
+  analysisPrompt: string
+  criteriaPrompts: Record<string, string>
+  scoringPrompt: string
+}
+
+class PromptManager {
+  private config: PromptConfig
+  
+  constructor() {
+    this.config = {
+      analysisPrompt: process.env.CREDI_ANALYSIS_PROMPT || '',
+      criteriaPrompts: {
+        unnecessaryComplexity: process.env.CREDI_COMPLEXITY_PROMPT || '',
+        proprietarySelling: process.env.CREDI_SELLING_PROMPT || '',
+        usVsThemFraming: process.env.CREDI_FRAMING_PROMPT || '',
+        overselling: process.env.CREDI_OVERSELLING_PROMPT || '',
+        emotionOverData: process.env.CREDI_EMOTION_PROMPT || '',
+        lackOfSourcing: process.env.CREDI_SOURCING_PROMPT || '',
+        serialContrarian: process.env.CREDI_CONTRARIAN_PROMPT || '',
+        guruSyndrome: process.env.CREDI_GURU_PROMPT || ''
+      },
+      scoringPrompt: process.env.CREDI_SCORING_PROMPT || ''
+    }
+    
+    this.validatePrompts()
+  }
+  
+  private validatePrompts(): void {
+    if (!this.config.analysisPrompt) {
+      throw new Error('CREDI_ANALYSIS_PROMPT environment variable is required')
+    }
+    // Add validation for other required prompts
+  }
+  
+  getAnalysisPrompt(): string {
+    return this.config.analysisPrompt
+  }
+  
+  getCriterionPrompt(criterion: string): string {
+    return this.config.criteriaPrompts[criterion] || ''
+  }
+  
+  getScoringPrompt(): string {
+    return this.config.scoringPrompt
+  }
+  
+  interpolatePrompt(template: string, variables: Record<string, string>): string {
+    let result = template
+    for (const [key, value] of Object.entries(variables)) {
+      result = result.replace(new RegExp(`{{${key}}}`, 'g'), value)
+    }
+    return result
+  }
+}
+
+// Updated analyzer with prompt management
+class ZenConsensusAnalyzer implements ContentAnalyzerAgent {
+  constructor(
+    private zenMCPClient: ZenMCPClient,
+    private promptManager: PromptManager = new PromptManager()
+  ) {}
+  
+  private buildAnalysisPrompt(posts: Post[], profileInfo: ProfileInfo): string {
+    const template = this.promptManager.getAnalysisPrompt()
+    
+    return this.promptManager.interpolatePrompt(template, {
+      username: profileInfo.username,
+      displayName: profileInfo.displayName,
+      bio: profileInfo.bio,
+      verified: profileInfo.verified.toString(),
+      postCount: posts.length.toString(),
+      posts: this.formatPosts(posts)
+    })
+  }
+}
+```
+
 **Extensible Design for Future Parallelization**
 ```typescript
 // Future extension: Parallel analysis by criteria if needed
 class ParallelCriteriaAnalyzer implements ContentAnalyzerAgent {
-  constructor(private zenMCPClient: ZenMCPClient) {}
+  constructor(
+    private zenMCPClient: ZenMCPClient,
+    private promptManager: PromptManager = new PromptManager()
+  ) {}
   
   async analyzeProfile(posts: Post[], profileInfo: ProfileInfo): Promise<AnalysisResult> {
     const criteria = [
@@ -569,7 +632,12 @@ class ParallelCriteriaAnalyzer implements ContentAnalyzerAgent {
     posts: Post[], 
     profileInfo: ProfileInfo
   ): Promise<CriteriaResult> {
-    const prompt = this.buildCriterionPrompt(criterion, posts, profileInfo)
+    const template = this.promptManager.getCriterionPrompt(criterion)
+    const prompt = this.promptManager.interpolatePrompt(template, {
+      username: profileInfo.username,
+      posts: this.formatPosts(posts),
+      criterion: criterion
+    })
     
     const result = await this.zenMCPClient.consensus({
       prompt,
