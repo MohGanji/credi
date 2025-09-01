@@ -1,0 +1,901 @@
+# Design Document
+
+## Overview
+
+Credi is a web-based social media credibility analysis platform built on a two-tier multi-agent architecture. The system processes social media profiles through specialized AI agents that evaluate content against eight credibility criteria, generating comprehensive reports with 0-10 credibility scores. The platform implements a freemium model with guest previews, user accounts, credit systems, and referral programs.
+
+## Architecture
+
+### High-Level Architecture
+
+```mermaid
+graph TB
+    subgraph "Frontend Layer"
+        UI[Web Interface]
+        Progress[Progress Tracker]
+        Auth[Authentication]
+    end
+    
+    subgraph "API Gateway"
+        Router[Request Router]
+        RateLimit[Rate Limiter]
+        Cache[Response Cache]
+    end
+    
+    subgraph "Core Services"
+        ProfileService[Profile Service]
+        AnalysisService[Analysis Service]
+        UserService[User Service]
+        PaymentService[Payment Service]
+        FeedbackService[Feedback Service]
+    end
+    
+    subgraph "Workflow Management"
+        WorkflowEngine[Workflow Engine]
+        JobQueue[Job Queue]
+        TaskScheduler[Task Scheduler]
+    end
+    
+    subgraph "Pipeline Execution"
+        PipelineCoordinator[Pipeline Coordinator]
+        CrawlerStage[Profile Crawler]
+        AnalyzerStage[Credibility Analyzer]
+        AggregatorStage[Result Aggregator]
+        ReportStage[Report Generator]
+    end
+    
+    subgraph "Social Media Crawlers"
+        TwitterCrawler[Twitter Crawler]
+        LinkedInCrawler[LinkedIn Crawler]
+        CrawlerFactory[Crawler Factory]
+    end
+    
+    subgraph "External Services"
+        ZenMCP[Zen MCP Server]
+        SocialAPIs[Social Media APIs]
+        PaymentGW[Payment Gateway]
+        SMS[SMS Service]
+        Email[Email Service]
+    end
+    
+    subgraph "Data Layer"
+        UserDB[(User Database)]
+        AnalysisDB[(Analysis Database)]
+        CacheDB[(Cache Database)]
+        FeedbackDB[(Feedback Database)]
+    end
+    
+    UI --> Router
+    Router --> ProfileService
+    Router --> UserService
+    Router --> PaymentService
+    Router --> FeedbackService
+    
+    ProfileService --> WorkflowEngine
+    WorkflowEngine --> JobQueue
+    JobQueue --> TaskScheduler
+    TaskScheduler --> PipelineCoordinator
+    PipelineCoordinator --> CrawlerStage
+    CrawlerStage --> AnalyzerStage
+    AnalyzerStage --> AggregatorStage
+    AggregatorStage --> ReportStage
+    
+    CrawlerStage --> CrawlerFactory
+    CrawlerFactory --> TwitterCrawler
+    CrawlerFactory --> LinkedInCrawler
+    TwitterCrawler --> SocialAPIs
+    LinkedInCrawler --> SocialAPIs
+    
+    AnalyzerStage --> ZenMCP
+    ReportStage --> ZenMCP
+    
+    ResultAggregator --> Cache
+    UserService --> UserDB
+    AnalysisService --> AnalysisDB
+    Cache --> CacheDB
+    FeedbackService --> FeedbackDB
+    
+    PaymentService --> PaymentGW
+    UserService --> SMS
+    UserService --> Email
+```
+
+### Workflow Management Architecture
+
+**Async Workflow Engine**
+- Manages long-running analysis workflows (up to 3 minutes)
+- Handles workflow state persistence and recovery
+- Provides real-time progress updates to users
+- Implements timeout and retry logic
+- Supports workflow cancellation and cleanup
+
+**Job Queue System**
+- Queues analysis requests for processing
+- Implements priority-based scheduling (paid users vs free users)
+- Handles rate limiting and load balancing
+- Provides job status tracking and monitoring
+- Supports delayed job execution and retries
+
+### Sequential Pipeline Architecture
+
+The analysis workflow is a straightforward sequential pipeline where each stage processes the output of the previous stage. This eliminates the need for complex agent orchestration in favor of a simpler, more predictable flow.
+
+**Analysis Pipeline Stages:**
+
+1. **Profile Crawler**: Takes profile URL → Returns posts and metadata
+2. **Credibility Analyzer**: Takes posts + profile info → Returns credibility assessment  
+3. **Result Aggregator**: Takes raw analysis → Returns structured result
+4. **Report Generator**: Takes structured result → Returns formatted report
+
+**Pipeline Coordinator**
+- Manages workflow state and progress tracking
+- Executes pipeline stages in sequence
+- Handles errors and retries at each stage
+- Provides real-time progress updates to users
+- Implements timeout and cancellation logic
+
+This approach is simpler, more testable, and easier to debug than a multi-tier agent system while still maintaining clear separation of concerns between specialized components.
+
+## Components and Interfaces
+
+### Frontend Components
+
+**Authentication System**
+```typescript
+interface AuthService {
+  registerUser(email: string, phone: string): Promise<RegistrationResult>
+  verifyEmail(token: string): Promise<boolean>
+  verifyPhone(code: string): Promise<boolean>
+  login(credentials: LoginCredentials): Promise<AuthResult>
+  logout(): Promise<void>
+}
+```
+
+**Profile Analysis Interface**
+```typescript
+interface AnalysisRequest {
+  profileUrl: string
+  userId?: string
+  isGuest: boolean
+}
+
+interface AnalysisProgress {
+  stage: 'validation' | 'crawling' | 'analyzing' | 'scoring' | 'reporting'
+  message: string
+  progress: number
+}
+
+interface ProfilePreview {
+  platform: 'twitter' | 'linkedin'
+  username: string
+  displayName: string
+  profileTitle: string
+  isPublic: boolean
+}
+```
+
+**Credit Management**
+```typescript
+interface CreditService {
+  getUserCredits(userId: string): Promise<number>
+  deductCredit(userId: string, analysisId: string): Promise<boolean>
+  addCredits(userId: string, amount: number, source: 'purchase' | 'referral'): Promise<void>
+  processPayment(userId: string, package: CreditPackage): Promise<PaymentResult>
+}
+```
+
+**Feedback Collection**
+```typescript
+interface FeedbackService {
+  submitFeedback(feedback: FeedbackSubmission): Promise<FeedbackResult>
+  getFeedback(filters?: FeedbackFilters): Promise<Feedback[]>
+  updateFeedbackStatus(id: string, status: FeedbackStatus): Promise<void>
+}
+
+interface FeedbackSubmission {
+  type: 'bug' | 'feature' | 'general'
+  title: string
+  description: string
+  userId?: string
+  userEmail?: string
+  browserInfo?: string
+  currentUrl?: string
+}
+```
+
+### Core Service Interfaces
+
+**Profile Service**
+```typescript
+interface ProfileService {
+  validateUrl(url: string): Promise<ValidationResult>
+  extractProfileInfo(url: string): Promise<ProfilePreview>
+  checkCache(profileUrl: string): Promise<CachedResult | null>
+  initiateAnalysis(request: AnalysisRequest): Promise<AnalysisSession>
+}
+```
+
+### Social Media Crawler Architecture
+
+**Polymorphic Crawler Interface**
+```typescript
+interface SocialMediaCrawler {
+  platform: 'twitter' | 'linkedin' | 'youtube'
+  validateUrl(url: string): boolean
+  extractProfileInfo(url: string): Promise<ProfileInfo>
+  crawlPosts(profileUrl: string, limit: number): Promise<Post[]>
+  isProfilePublic(url: string): Promise<boolean>
+}
+
+interface Post {
+  id: string
+  content: string
+  timestamp: Date
+  links: string[]
+}
+
+interface ProfileInfo {
+  username: string
+  displayName: string
+  bio: string
+  verified: boolean
+}
+```
+
+**Platform-Specific Implementations**
+```typescript
+class TwitterCrawler implements SocialMediaCrawler {
+  platform = 'twitter' as const
+  
+  validateUrl(url: string): boolean {
+    return /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/?$/.test(url)
+  }
+  
+  async extractProfileInfo(url: string): Promise<ProfileInfo> {
+    // Twitter-specific API calls or scraping logic
+  }
+  
+  async crawlPosts(profileUrl: string, limit: number): Promise<Post[]> {
+    // Twitter-specific post extraction
+  }
+  
+  async isProfilePublic(url: string): Promise<boolean> {
+    // Twitter-specific public profile check
+  }
+}
+
+class LinkedInCrawler implements SocialMediaCrawler {
+  platform = 'linkedin' as const
+  
+  validateUrl(url: string): boolean {
+    return /^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+\/?$/.test(url)
+  }
+  
+  async extractProfileInfo(url: string): Promise<ProfileInfo> {
+    // LinkedIn-specific API calls or scraping logic
+  }
+  
+  async crawlPosts(profileUrl: string, limit: number): Promise<Post[]> {
+    // LinkedIn-specific post extraction
+  }
+  
+  async isProfilePublic(url: string): Promise<boolean> {
+    // LinkedIn-specific public profile check
+  }
+}
+```
+
+**Crawler Factory**
+```typescript
+class CrawlerFactory {
+  private crawlers: Map<string, SocialMediaCrawler> = new Map()
+  
+  constructor() {
+    this.crawlers.set('twitter', new TwitterCrawler())
+    this.crawlers.set('linkedin', new LinkedInCrawler())
+    // Future: this.crawlers.set('youtube', new YouTubeCrawler())
+  }
+  
+  getCrawler(url: string): SocialMediaCrawler | null {
+    for (const [platform, crawler] of this.crawlers) {
+      if (crawler.validateUrl(url)) {
+        return crawler
+      }
+    }
+    return null
+  }
+  
+  getSupportedPlatforms(): string[] {
+    return Array.from(this.crawlers.keys())
+  }
+}
+```
+
+**Analysis Service**
+```typescript
+interface AnalysisService {
+  processProfile(profileUrl: string): Promise<AnalysisResult>
+  getAnalysisStatus(sessionId: string): Promise<AnalysisProgress>
+  getCachedAnalysis(profileUrl: string): Promise<AnalysisResult | null>
+  saveAnalysis(result: AnalysisResult): Promise<void>
+}
+```
+
+### Workflow Management Interfaces
+
+**Workflow Engine**
+```typescript
+interface WorkflowEngine {
+  startAnalysisWorkflow(request: AnalysisRequest): Promise<WorkflowExecution>
+  getWorkflowStatus(executionId: string): Promise<WorkflowStatus>
+  cancelWorkflow(executionId: string): Promise<void>
+  retryWorkflow(executionId: string): Promise<WorkflowExecution>
+}
+
+interface WorkflowExecution {
+  id: string
+  status: 'running' | 'completed' | 'failed' | 'cancelled'
+  progress: WorkflowProgress
+  result?: AnalysisResult
+  error?: string
+  startedAt: Date
+  completedAt?: Date
+}
+
+interface WorkflowProgress {
+  currentStage: 'validation' | 'crawling' | 'analyzing' | 'reporting' | 'complete'
+  stageProgress: number // 0-100
+  overallProgress: number // 0-100
+  message: string
+  estimatedTimeRemaining?: number
+}
+```
+
+**Job Queue System**
+```typescript
+interface JobQueue {
+  enqueue(job: AnalysisJob): Promise<string>
+  dequeue(): Promise<AnalysisJob | null>
+  getJobStatus(jobId: string): Promise<JobStatus>
+  updateJobProgress(jobId: string, progress: JobProgress): Promise<void>
+  completeJob(jobId: string, result: any): Promise<void>
+  failJob(jobId: string, error: string): Promise<void>
+}
+
+interface AnalysisJob {
+  id: string
+  userId?: string
+  profileUrl: string
+  priority: 'low' | 'normal' | 'high'
+  isGuest: boolean
+  createdAt: Date
+  maxRetries: number
+  currentRetry: number
+  timeout: number
+}
+
+interface JobStatus {
+  id: string
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled'
+  progress?: JobProgress
+  result?: any
+  error?: string
+  queuePosition?: number
+  estimatedStartTime?: Date
+}
+
+interface JobProgress {
+  stage: string
+  progress: number
+  message: string
+  updatedAt: Date
+}
+```
+
+### Content Analyzer Agent Architecture
+
+The Content Analyzer Agent uses the zen-mcp-server's consensus tool to get multi-model analysis of social media profiles. This approach leverages multiple AI models in parallel to analyze all posts and criteria simultaneously, then aggregates their responses for a final credibility assessment.
+
+**Content Analyzer Using Zen MCP Consensus**
+```typescript
+interface ContentAnalyzerAgent {
+  analyzeProfile(posts: Post[], profileInfo: ProfileInfo): Promise<AnalysisResult>
+}
+
+class ZenConsensusAnalyzer implements ContentAnalyzerAgent {
+  constructor(private zenMCPClient: ZenMCPClient) {}
+  
+  async analyzeProfile(posts: Post[], profileInfo: ProfileInfo): Promise<AnalysisResult> {
+    const analysisPrompt = this.buildAnalysisPrompt(posts, profileInfo)
+    
+    // Use zen consensus tool with multiple models
+    const consensusResult = await this.zenMCPClient.consensus({
+      prompt: analysisPrompt,
+      models: [
+        { model: 'claude-3-sonnet', stance: 'neutral' },
+        { model: 'gpt-4', stance: 'neutral' },
+        { model: 'gemini-pro', stance: 'neutral' }
+      ],
+      focus_areas: ['credibility', 'evidence', 'bias_detection'],
+      thinking_mode: 'medium',
+      temperature: 0.2
+    })
+    
+    return this.parseConsensusResult(consensusResult, posts, profileInfo)
+  }
+  
+  private buildAnalysisPrompt(posts: Post[], profileInfo: ProfileInfo): string {
+    return `
+Analyze this social media profile for credibility based on the following criteria:
+
+Profile Information:
+- Username: ${profileInfo.username}
+- Display Name: ${profileInfo.displayName}
+- Bio: ${profileInfo.bio}
+- Verified: ${profileInfo.verified}
+
+Posts to analyze (${posts.length} total):
+${posts.map((post, i) => `
+Post ${i + 1} (${post.timestamp}):
+${post.content}
+${post.links.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
+`).join('\n')}
+
+Evaluate against these 8 credibility criteria:
+
+1. **Unnecessary Complexity**: Does the content use overly complex language when simple would suffice? Look for jargon without explanation or academic-style writing in popular content.
+
+2. **Proprietary/Pushy Selling**: How frequently does the content promote products/services? Are there claims of proprietary methods? What's the ratio of sales-focused vs educational content?
+
+3. **Us vs Them Framing**: Does the content create artificial conflicts or position against other groups/methods? Look for tribal or divisive language patterns.
+
+4. **Overselling Narrow Interventions**: Are there claims that specific approaches can solve many different problems? Look for promises of big results across multiple domains.
+
+5. **Emotion/Story vs Data**: Does the content rely more on emotional appeals and stories than on research and data? Are narratives replacing evidence?
+
+6. **Lack of Sourcing**: Are research-backed claims properly cited? Is there openness to scrutiny and source verification?
+
+7. **Serial Contrarian**: Does the person consistently go against established wisdom just for the sake of being different?
+
+8. **Guru Syndrome**: Does the figure lack humility, never address how they might be wrong, or claim expertise beyond their domain?
+
+Provide:
+- A credibility score from 0-10 (where 0 = completely unreliable, 10 = highly credible)
+- Evaluation for each of the 8 criteria (pass/warning/fail with examples)
+- Key strengths of the profile
+- Representative posts that illustrate the analysis
+- Justification for why the score isn't higher or lower
+
+Format your response as structured JSON that can be parsed programmatically.
+    `
+  }
+  
+  private parseConsensusResult(
+    consensusResult: any, 
+    posts: Post[], 
+    profileInfo: ProfileInfo
+  ): AnalysisResult {
+    // Parse the consensus response and convert to AnalysisResult format
+    // The zen consensus tool will provide aggregated analysis from multiple models
+    
+    return {
+      id: generateId(),
+      profileUrl: '', // Will be set by caller
+      platform: this.detectPlatform(profileInfo.username),
+      username: profileInfo.username,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      
+      overview: {
+        sampledPosts: posts.length,
+        crediScore: consensusResult.finalScore || 5,
+        focusAreas: this.extractFocusAreas(consensusResult)
+      },
+      
+      strengths: this.extractStrengths(consensusResult),
+      criteriaEvaluation: this.extractCriteriaEvaluation(consensusResult),
+      representativePosts: this.extractRepresentativePosts(consensusResult, posts),
+      scoreJustification: this.extractJustification(consensusResult)
+    }
+  }
+}
+```
+
+**Zen MCP Client Interface**
+```typescript
+interface ZenMCPClient {
+  consensus(params: ConsensusParams): Promise<ConsensusResponse>
+}
+
+interface ConsensusParams {
+  prompt: string
+  models: Array<{
+    model: string
+    stance?: 'for' | 'against' | 'neutral'
+    stance_prompt?: string
+  }>
+  focus_areas?: string[]
+  thinking_mode?: 'minimal' | 'low' | 'medium' | 'high' | 'max'
+  temperature?: number
+  use_websearch?: boolean
+}
+
+interface ConsensusResponse {
+  finalScore: number
+  confidence: number
+  modelResponses: Array<{
+    model: string
+    analysis: any
+    score: number
+  }>
+  consensus: string
+  reasoning: string
+}
+```
+
+**Extensible Design for Future Parallelization**
+```typescript
+// Future extension: Parallel analysis by criteria if needed
+class ParallelCriteriaAnalyzer implements ContentAnalyzerAgent {
+  constructor(private zenMCPClient: ZenMCPClient) {}
+  
+  async analyzeProfile(posts: Post[], profileInfo: ProfileInfo): Promise<AnalysisResult> {
+    const criteria = [
+      'unnecessaryComplexity',
+      'proprietarySelling', 
+      'usVsThemFraming',
+      'overselling',
+      'emotionOverData',
+      'lackOfSourcing',
+      'serialContrarian',
+      'guruSyndrome'
+    ]
+    
+    // Parallel analysis by criteria (if needed for performance)
+    const criteriaPromises = criteria.map(criterion => 
+      this.analyzeCriterion(criterion, posts, profileInfo)
+    )
+    
+    const criteriaResults = await Promise.all(criteriaPromises)
+    
+    // Final consensus scoring
+    const finalScore = await this.generateFinalScore(criteriaResults, posts, profileInfo)
+    
+    return this.buildAnalysisResult(criteriaResults, finalScore, posts, profileInfo)
+  }
+  
+  private async analyzeCriterion(
+    criterion: string, 
+    posts: Post[], 
+    profileInfo: ProfileInfo
+  ): Promise<CriteriaResult> {
+    const prompt = this.buildCriterionPrompt(criterion, posts, profileInfo)
+    
+    const result = await this.zenMCPClient.consensus({
+      prompt,
+      models: [
+        { model: 'claude-3-sonnet', stance: 'neutral' },
+        { model: 'gpt-4', stance: 'neutral' }
+      ],
+      focus_areas: [criterion],
+      thinking_mode: 'low',
+      temperature: 0.1
+    })
+    
+    return this.parseCriterionResult(result, criterion)
+  }
+}
+```
+
+### Agent Communication Protocol
+
+**Task Definition**
+```typescript
+interface AgentTask {
+  id: string
+  type: 'crawl' | 'analyze' | 'score' | 'report'
+  input: any
+  constraints: {
+    timeout: number
+    maxRetries: number
+    model?: string
+  }
+  context?: any
+}
+```
+
+**Agent Response**
+```typescript
+interface AgentResponse {
+  taskId: string
+  status: 'complete' | 'failed' | 'partial'
+  result: any
+  metadata: {
+    processingTime: number
+    confidence: number
+    model: string
+    tokensUsed: number
+  }
+  errors?: string[]
+}
+```
+
+## Data Models
+
+### User Management
+
+```typescript
+interface User {
+  id: string
+  email: string
+  phone: string
+  emailVerified: boolean
+  phoneVerified: boolean
+  credits: number
+  createdAt: Date
+  lastLogin: Date
+  referralCode: string
+  referredBy?: string
+}
+
+interface UserActivity {
+  id: string
+  userId: string
+  type: 'analysis' | 'payment' | 'referral' | 'login'
+  details: any
+  timestamp: Date
+}
+```
+
+### Analysis Data
+
+```typescript
+interface AnalysisResult {
+  id: string
+  profileUrl: string
+  platform: string
+  username: string
+  createdAt: Date
+  expiresAt: Date
+  
+  overview: {
+    sampledPosts: number
+    crediScore: number
+    focusAreas: string[]
+  }
+  
+  strengths: Array<{
+    title: string
+    description: string
+    examples: string[]
+  }>
+  
+  criteriaEvaluation: {
+    unnecessaryComplexity: CriteriaResult
+    proprietarySelling: CriteriaResult
+    usVsThemFraming: CriteriaResult
+    overselling: CriteriaResult
+    emotionOverData: CriteriaResult
+    lackOfSourcing: CriteriaResult
+    serialContrarian: CriteriaResult
+    guruSyndrome: CriteriaResult
+  }
+  
+  representativePosts: Array<{
+    title: string
+    url: string
+    content: string
+    redFlags: string[]
+    timestamp: Date
+  }>
+  
+  scoreJustification: {
+    whyNotHigher: string[]
+    whyNotLower: string[]
+  }
+}
+
+interface CriteriaResult {
+  status: 'pass' | 'warning' | 'fail'
+  evaluation: string
+  examples?: string[]
+  links?: string[]
+}
+```
+
+### Payment and Credits
+
+```typescript
+interface Transaction {
+  id: string
+  userId: string
+  type: 'purchase' | 'referral_bonus' | 'analysis_deduction'
+  amount: number
+  credits: number
+  status: 'pending' | 'completed' | 'failed'
+  paymentMethod?: string
+  createdAt: Date
+}
+
+interface CreditPackage {
+  id: string
+  name: string
+  credits: number
+  price: number
+  currency: string
+  popular?: boolean
+}
+```
+
+### Feedback Management
+
+```typescript
+interface Feedback {
+  id: string
+  type: 'bug' | 'feature' | 'general'
+  title: string
+  description: string
+  userId?: string
+  userEmail?: string
+  status: 'new' | 'in_progress' | 'resolved' | 'closed'
+  priority: 'low' | 'medium' | 'high' | 'critical'
+  browserInfo?: string
+  currentUrl?: string
+  createdAt: Date
+  updatedAt: Date
+  assignedTo?: string
+  resolution?: string
+}
+```
+
+## Error Handling
+
+### Graceful Degradation Strategy
+
+1. **Agent Failure Cascade**
+   - Primary agent attempts task redistribution
+   - Retry with different models/parameters
+   - Fallback to simplified analysis
+   - Complete failure with user notification
+
+2. **Timeout Management**
+   - 3-minute hard timeout for complete analysis
+   - Progressive timeouts for individual agents (30s-60s)
+   - No partial results - complete analysis or failure
+   - Clear user messaging about timeout and retry options
+
+3. **Rate Limiting and Backoff**
+   - Exponential backoff for API failures
+   - Circuit breaker pattern for external services
+   - Queue management for high-load scenarios
+
+### Error Response Format
+
+```typescript
+interface ErrorResponse {
+  code: string
+  message: string
+  details?: any
+  retryable: boolean
+  suggestedAction?: string
+}
+```
+
+## Testing Strategy
+
+### Unit Testing
+- Individual agent testing in isolation
+- Mock external API responses
+- Test each credibility criterion evaluation
+- Validate scoring algorithms
+
+### Integration Testing
+- End-to-end analysis workflows
+- Payment processing flows
+- User registration and verification
+- Cache behavior validation
+
+### Load Testing
+- Concurrent analysis requests
+- Agent queue management under load
+- Database performance with high user activity
+- Payment system stress testing
+
+### Agent Testing Framework
+```typescript
+interface AgentTestCase {
+  name: string
+  input: AgentTask
+  expectedOutput: Partial<AgentResponse>
+  mockResponses?: any[]
+  timeout?: number
+}
+
+interface AgentTestSuite {
+  agentType: string
+  testCases: AgentTestCase[]
+  setup?: () => Promise<void>
+  teardown?: () => Promise<void>
+}
+```
+
+## Performance Optimization
+
+### Caching Strategy
+- **Analysis Cache**: 24-hour TTL per profile URL
+- **User Session Cache**: 1-hour TTL for authentication
+- **Profile Preview Cache**: 6-hour TTL for profile metadata
+- **Payment Cache**: Transaction status caching
+
+### Parallel Processing
+- Independent agent execution for different criteria
+- Concurrent post analysis for large profiles
+- Parallel consensus scoring from multiple models
+- Asynchronous report generation
+
+### Model Selection Strategy
+```typescript
+interface ModelConfig {
+  task: string
+  complexity: 'simple' | 'medium' | 'complex'
+  model: 'haiku' | 'sonnet' | 'opus'
+  maxTokens: number
+  temperature: number
+}
+```
+
+## Security Considerations
+
+### Authentication Security
+- Phone and email verification required
+- Rate limiting on registration attempts
+- Secure session management
+- Password hashing with bcrypt
+
+### Payment Security
+- PCI DSS compliant payment processing
+- Encrypted transaction data
+- Fraud detection integration
+- Secure webhook handling
+
+### Data Protection
+- User data encryption at rest
+- Secure API key management
+- GDPR compliance for user data
+- Analysis result anonymization options
+
+## Monitoring and Observability
+
+### Key Metrics
+- Analysis completion rate and timing
+- Agent success/failure rates by type
+- User conversion from guest to registered
+- Credit usage patterns and revenue metrics
+- API rate limit and quota usage
+
+### Logging Strategy
+```typescript
+interface AnalysisLog {
+  sessionId: string
+  userId?: string
+  profileUrl: string
+  stages: Array<{
+    stage: string
+    startTime: Date
+    endTime: Date
+    success: boolean
+    agentUsed?: string
+    tokensUsed?: number
+  }>
+  totalTime: number
+  finalScore?: number
+  errors?: string[]
+}
+```
+
+### Alerting
+- Analysis failure rate > 5%
+- Average processing time > 2 minutes
+- Payment processing failures
+- High error rates from specific agents
+- Unusual user activity patterns
