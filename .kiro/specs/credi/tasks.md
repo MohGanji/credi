@@ -8,7 +8,7 @@
   - Configure Tailwind CSS for styling
   - _Requirements: 1.1_
 
-- [ ] 2. Create basic application layout with URL input form
+- [x] 2. Create basic application layout with URL input form
   - Build main layout component with header
   - Create home page with URL input form for social media profiles
   - Add basic form validation and submission handling
