@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   validateSocialMediaUrl,
   getPlatformInfo,
@@ -49,6 +50,7 @@ interface FullAnalysisResult {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [url, setUrl] = useState('');
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [platformInfo, setPlatformInfo] = useState<PlatformInfo | null>(null);
@@ -174,6 +176,11 @@ export default function Home() {
       }
 
       setAnalysisResult(data);
+      
+      // Redirect to results page after successful analysis creation
+      setTimeout(() => {
+        router.push(`/results/${data.analysisId}`);
+      }, 2000); // Give user time to see the success message
     } catch (error) {
       console.error('Error starting analysis:', error);
       alert(`Error starting analysis: ${error instanceof Error ? error.message : 'Unknown error'}`);
