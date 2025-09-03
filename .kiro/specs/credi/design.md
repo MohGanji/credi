@@ -718,6 +718,11 @@ interface UserActivity {
 ### Analysis Data
 
 ```typescript
+interface AnalysisSection {
+  name: string
+  data: Record<string, any>
+}
+
 interface AnalysisResult {
   id: string
   profileUrl: string
@@ -725,49 +730,96 @@ interface AnalysisResult {
   username: string
   createdAt: Date
   expiresAt: Date
+  crediScore: number
+  sections: AnalysisSection[]
   
-  overview: {
-    sampledPosts: number
-    crediScore: number
-    focusAreas: string[]
-  }
-  
-  strengths: Array<{
-    title: string
-    description: string
-    examples: string[]
-  }>
-  
-  criteriaEvaluation: {
-    unnecessaryComplexity: CriteriaResult
-    proprietarySelling: CriteriaResult
-    usVsThemFraming: CriteriaResult
-    overselling: CriteriaResult
-    emotionOverData: CriteriaResult
-    lackOfSourcing: CriteriaResult
-    serialContrarian: CriteriaResult
-    guruSyndrome: CriteriaResult
-  }
-  
-  representativePosts: Array<{
-    title: string
-    url: string
-    content: string
-    redFlags: string[]
-    timestamp: Date
-  }>
-  
-  scoreJustification: {
-    whyNotHigher: string[]
-    whyNotLower: string[]
+  // Metadata
+  processingTimeMs?: number
+  modelUsed?: string
+  tokensUsed?: number
+}
+
+// Example section structures that can be dynamically generated:
+
+// Overview Section
+interface OverviewSection extends AnalysisSection {
+  name: "overview"
+  data: {
+    "Sampled Posts": number
+    "Analysis Date": string
+    "Platform": string
+    "Profile Status": string
+    [key: string]: any
   }
 }
 
-interface CriteriaResult {
-  status: 'pass' | 'warning' | 'fail'
-  evaluation: string
-  examples?: string[]
-  links?: string[]
+// Strengths Section
+interface StrengthsSection extends AnalysisSection {
+  name: "strengths"
+  data: {
+    "Content Quality": string
+    "Source Citations": string
+    "Balanced Perspective": string
+    [strengthName: string]: string
+  }
+}
+
+// Criteria Evaluation Section
+interface CriteriaSection extends AnalysisSection {
+  name: "criteria_evaluation"
+  data: {
+    "Unnecessary Complexity": {
+      status: "pass" | "warning" | "fail"
+      evaluation: string
+      examples?: string[]
+    }
+    "Proprietary Selling": {
+      status: "pass" | "warning" | "fail"
+      evaluation: string
+      examples?: string[]
+    }
+    [criteriaName: string]: {
+      status: "pass" | "warning" | "fail"
+      evaluation: string
+      examples?: string[]
+    }
+  }
+}
+
+// Representative Posts Section
+interface PostsSection extends AnalysisSection {
+  name: "representative_posts"
+  data: {
+    "High Quality Posts": Array<{
+      content: string
+      url: string
+      timestamp: string
+      reasoning: string
+    }>
+    "Concerning Posts": Array<{
+      content: string
+      url: string
+      timestamp: string
+      redFlags: string[]
+    }>
+    [categoryName: string]: Array<{
+      content: string
+      url: string
+      timestamp: string
+      [key: string]: any
+    }>
+  }
+}
+
+// Score Justification Section
+interface JustificationSection extends AnalysisSection {
+  name: "score_justification"
+  data: {
+    "Why Not Higher": string[]
+    "Why Not Lower": string[]
+    "Key Factors": string[]
+    [justificationCategory: string]: string[]
+  }
 }
 ```
 
@@ -886,6 +938,40 @@ interface AgentTestSuite {
   teardown?: () => Promise<void>
 }
 ```
+
+## Dynamic Analysis Visualization
+
+### Flexible Section Rendering
+
+The analysis results use a flexible section-based structure that allows for dynamic visualization:
+
+**Rendering Rules:**
+- Each section has a `name` (used as section title) and `data` object
+- Object keys become headings/subheadings
+- String values become paragraph content
+- Arrays of strings become bullet lists
+- Arrays of objects become tables
+- Nested objects become subsections with subheadings
+
+**Frontend Visualization Component:**
+```typescript
+interface AnalysisVisualizerProps {
+  sections: AnalysisSection[]
+  crediScore: number
+}
+
+// The visualizer will:
+// 1. Render the credi score prominently
+// 2. Iterate through sections and render each based on data structure
+// 3. Apply appropriate styling for headings, lists, tables, etc.
+// 4. Handle nested objects recursively
+```
+
+This approach provides maximum flexibility for:
+- Adding new analysis sections without frontend changes
+- Modifying section content structure dynamically
+- A/B testing different result presentations
+- Customizing analysis depth based on user tier
 
 ## Performance Optimization
 

@@ -23,22 +23,9 @@ model Analysis {
   expiresAt   DateTime
   requestedBy String?  // Optional field for future use
   
-  // Overview data
-  sampledPosts Int
-  crediScore   Float
-  focusAreas   Json // Array of focus areas stored as JSON
-  
-  // Strengths (JSON field)
-  strengths Json
-  
-  // Criteria evaluation results (JSON field)
-  criteriaEvaluation Json
-  
-  // Representative posts (JSON field)
-  representativePosts Json
-  
-  // Score justification (JSON field)
-  scoreJustification Json
+  // Core analysis data
+  crediScore Float
+  sections   Json // Array of sections with flexible structure: [{name: string, data: object}]
   
   // Metadata
   processingTimeMs Int?

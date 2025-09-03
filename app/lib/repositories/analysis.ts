@@ -1,5 +1,6 @@
 import { prisma } from '../db';
 import { Analysis, Prisma } from '../../generated/prisma';
+import { AnalysisSection } from '../types/analysis';
 
 export interface CreateAnalysisData {
   profileUrl: string;
@@ -7,26 +8,16 @@ export interface CreateAnalysisData {
   username: string;
   expiresAt: Date;
   requestedBy?: string; // Optional field for future use
-  sampledPosts: number;
   crediScore: number;
-  focusAreas: string[];
-  strengths: Record<string, any>;
-  criteriaEvaluation: Record<string, any>;
-  representativePosts: Record<string, any>;
-  scoreJustification: Record<string, any>;
+  sections: AnalysisSection[];
   processingTimeMs?: number;
   modelUsed?: string;
   tokensUsed?: number;
 }
 
 export interface UpdateAnalysisData {
-  sampledPosts?: number;
   crediScore?: number;
-  focusAreas?: string[];
-  strengths?: Record<string, any>;
-  criteriaEvaluation?: Record<string, any>;
-  representativePosts?: Record<string, any>;
-  scoreJustification?: Record<string, any>;
+  sections?: AnalysisSection[];
   processingTimeMs?: number;
   modelUsed?: string;
   tokensUsed?: number;
@@ -46,13 +37,8 @@ export class AnalysisRepository {
         username: data.username,
         expiresAt: data.expiresAt,
         requestedBy: data.requestedBy,
-        sampledPosts: data.sampledPosts,
         crediScore: data.crediScore,
-        focusAreas: data.focusAreas,
-        strengths: data.strengths,
-        criteriaEvaluation: data.criteriaEvaluation,
-        representativePosts: data.representativePosts,
-        scoreJustification: data.scoreJustification,
+        sections: data.sections as unknown as Prisma.InputJsonValue,
         processingTimeMs: data.processingTimeMs,
         modelUsed: data.modelUsed,
         tokensUsed: data.tokensUsed,
@@ -108,13 +94,8 @@ export class AnalysisRepository {
         id,
       },
       data: {
-        sampledPosts: data.sampledPosts,
         crediScore: data.crediScore,
-        focusAreas: data.focusAreas,
-        strengths: data.strengths,
-        criteriaEvaluation: data.criteriaEvaluation,
-        representativePosts: data.representativePosts,
-        scoreJustification: data.scoreJustification,
+        sections: data.sections as unknown as Prisma.InputJsonValue,
         processingTimeMs: data.processingTimeMs,
         modelUsed: data.modelUsed,
         tokensUsed: data.tokensUsed,

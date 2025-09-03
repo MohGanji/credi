@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  validateSocialMediaUrl, 
-  getPlatformInfo, 
-  type ValidationResult, 
+import {
+  validateSocialMediaUrl,
+  getPlatformInfo,
+  type ValidationResult,
   type PlatformInfo,
-  type SupportedPlatform 
+  type SupportedPlatform
 } from './lib/validation';
+import { AnalysisSection } from './lib/types/analysis';
 
 interface ProfilePreview {
   platform: SupportedPlatform;
@@ -18,6 +19,35 @@ interface ProfilePreview {
   profilePicture?: string;
 }
 
+interface AnalysisResult {
+  success: boolean;
+  analysisId: string;
+  message: string;
+  analysis: {
+    id: string;
+    profileUrl: string;
+    platform: string;
+    username: string;
+    createdAt: string;
+    status: string;
+  };
+}
+
+// Full analysis interface for future use when we fetch complete analysis data
+interface FullAnalysisResult {
+  id: string;
+  profileUrl: string;
+  platform: string;
+  username: string;
+  createdAt: string;
+  expiresAt: string;
+  crediScore: number;
+  sections: AnalysisSection[];
+  processingTimeMs?: number;
+  modelUsed?: string;
+  tokensUsed?: number;
+}
+
 export default function Home() {
   const [url, setUrl] = useState('');
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -25,17 +55,19 @@ export default function Home() {
   const [profilePreview, setProfilePreview] = useState<ProfilePreview | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState<string>('');
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Use the validation function from lib/validation.ts
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;
     setUrl(newUrl);
-    
+
     if (newUrl.trim()) {
       const result = validateSocialMediaUrl(newUrl);
       setValidationResult(result);
-      
+
       if (result.isValid) {
         // Get detailed platform info for valid URLs
         const info = getPlatformInfo(newUrl);
@@ -54,10 +86,10 @@ export default function Home() {
   const extractProfileInfo = async (url: string, platform: SupportedPlatform): Promise<ProfilePreview> => {
     setCurrentStage('Credi is verifying that the page is public');
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     setCurrentStage('Credi is extracting profile information');
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     // Use the platform info from validation functions
     const platformInfo = getPlatformInfo(url);
     if (!platformInfo) {
@@ -91,17 +123,17 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const result = validateSocialMediaUrl(url);
     setValidationResult(result);
-    
+
     if (!result.isValid || !result.platform) {
       return;
     }
 
     setIsLoading(true);
     setCurrentStage('Identifying profile...');
-    
+
     try {
       const preview = await extractProfileInfo(url, result.platform);
       setProfilePreview(preview);
@@ -118,9 +150,36 @@ export default function Home() {
     }
   };
 
-  const handleAnalyze = () => {
-    // This will be implemented in future tasks
-    alert('Analysis functionality will be implemented in the next tasks!');
+  const handleAnalyze = async () => {
+    if (!profilePreview || !url) return;
+
+    setIsAnalyzing(true);
+    setAnalysisResult(null);
+
+    try {
+      const response = await fetch('/api/analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          profileUrl: url,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start analysis');
+      }
+
+      setAnalysisResult(data);
+    } catch (error) {
+      console.error('Error starting analysis:', error);
+      alert(`Error starting analysis: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
@@ -131,7 +190,7 @@ export default function Home() {
           Find Credible Voices
         </h1>
         <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-          Cut through the noise and identify trustworthy sources of information on social media. 
+          Cut through the noise and identify trustworthy sources of information on social media.
           Get detailed credibility analysis based on evidence-based criteria.
         </p>
       </div>
@@ -150,10 +209,9 @@ export default function Home() {
                 value={url}
                 onChange={handleUrlChange}
                 placeholder="https://twitter.com/username or https://linkedin.com/in/username"
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  validationResult?.isValid === false ? 'border-red-300' : 
-                  validationResult?.isValid === true ? 'border-green-300' : 'border-gray-300'
-                }`}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${validationResult?.isValid === false ? 'border-red-300' :
+                    validationResult?.isValid === true ? 'border-green-300' : 'border-gray-300'
+                  }`}
                 disabled={isLoading}
               />
               {validationResult?.platform && (
@@ -164,7 +222,7 @@ export default function Home() {
                 </div>
               )}
             </div>
-            
+
             {/* Real-time Validation Feedback */}
             {validationResult?.isValid && platformInfo && (
               <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -188,7 +246,7 @@ export default function Home() {
                 </div>
               </div>
             )}
-            
+
             {/* Validation Error */}
             {validationResult?.error && (
               <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -205,7 +263,7 @@ export default function Home() {
                 </div>
               </div>
             )}
-            
+
             {/* Loading State */}
             {isLoading && currentStage && (
               <p className="mt-2 text-sm text-blue-600 flex items-center">
@@ -249,7 +307,7 @@ export default function Home() {
                     }}
                   />
                 ) : null}
-                <div 
+                <div
                   className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center"
                   style={{ display: profilePreview.profilePicture ? 'none' : 'flex' }}
                 >
@@ -261,7 +319,7 @@ export default function Home() {
                 </div>
                 {/* Platform badge */}
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center border-2 border-white"
-                     style={{ backgroundColor: profilePreview.platform === 'twitter' ? '#1da1f2' : '#0077b5' }}>
+                  style={{ backgroundColor: profilePreview.platform === 'twitter' ? '#1da1f2' : '#0077b5' }}>
                   <span className="text-white font-bold text-xs">
                     {profilePreview.platform === 'twitter' ? 'T' : 'in'}
                   </span>
@@ -279,10 +337,61 @@ export default function Home() {
             </div>
             <button
               onClick={handleAnalyze}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+              disabled={isAnalyzing}
+              className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Analyze Credibility
+              {isAnalyzing ? 'Starting Analysis...' : 'Start Analysis'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Analysis Success Message */}
+      {analysisResult && (
+        <div className="bg-white rounded-lg shadow-md p-8 mt-8">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-green-800">Analysis Started Successfully!</h3>
+              <p className="text-sm text-green-600">{analysisResult.message}</p>
+            </div>
+          </div>
+
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-green-800">Analysis ID</p>
+                <p className="text-sm text-green-700 font-mono bg-white px-2 py-1 rounded border">
+                  {analysisResult.analysisId}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-green-800">Profile</p>
+                <p className="text-sm text-green-700">
+                  {analysisResult.analysis.username} on {analysisResult.analysis.platform}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-green-800">Status</p>
+                <p className="text-sm text-green-700 capitalize">{analysisResult.analysis.status}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-green-800">Created</p>
+                <p className="text-sm text-green-700">
+                  {new Date(analysisResult.analysis.createdAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-green-200">
+              <p className="text-xs text-green-600">
+                <strong>For testing:</strong> Check your database for a new analysis record with ID: {analysisResult.analysisId}
+              </p>
+            </div>
           </div>
         </div>
       )}
