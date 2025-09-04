@@ -17,39 +17,26 @@ export interface StrengthsSectionData {
 
 // Criteria evaluation result
 export interface CriteriaEvaluation {
+  criterion: string;
   status: "pass" | "warning" | "fail";
   evaluation: string;
   examples?: string[];
 }
 
-// Criteria evaluation section data
-export interface CriteriaEvaluationSectionData {
-  "Unnecessary Complexity": CriteriaEvaluation;
-  "Proprietary/Pushy Selling": CriteriaEvaluation;
-  "Us vs. Them Framing": CriteriaEvaluation;
-  "Overselling Narrow Interventions": CriteriaEvaluation;
-  "Emotion/Story vs Data": CriteriaEvaluation;
-  "Lack of Sourcing": CriteriaEvaluation;
-  "Serial Contrarian": CriteriaEvaluation;
-  "Guru Syndrome": CriteriaEvaluation;
-  [criteriaName: string]: CriteriaEvaluation; // Allow additional criteria
-}
+// Criteria evaluation section data (now an array for table rendering)
+export type CriteriaEvaluationSectionData = CriteriaEvaluation[];
 
 // Representative post
 export interface RepresentativePost {
+  category: string;
   content: string;
   timestamp: string;
   url: string;
   reasoning: string;
 }
 
-// Representative posts section data
-export interface RepresentativePostsSectionData {
-  "Recent Highlights"?: RepresentativePost[];
-  "High Quality Posts"?: RepresentativePost[];
-  "Concerning Posts"?: RepresentativePost[];
-  [categoryName: string]: RepresentativePost[] | undefined; // Allow additional categories
-}
+// Representative posts section data (now an array for table rendering)
+export type RepresentativePostsSectionData = RepresentativePost[];
 
 // Score justification section data
 export interface ScoreJustificationSectionData {
@@ -65,7 +52,8 @@ export type SectionData =
   | StrengthsSectionData
   | CriteriaEvaluationSectionData
   | RepresentativePostsSectionData
-  | ScoreJustificationSectionData;
+  | ScoreJustificationSectionData
+  | Record<string, any>; // Allow any structure for flexibility
 
 // Typed analysis section
 export interface AnalysisSection {
