@@ -71,11 +71,21 @@
   - **User Test**: Submit same URL twice, second time should show cached results instantly
   - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5_
 
-- [ ] 11. Set up zen-mcp-server for real AI analysis (USER TESTABLE)
-  - Install and configure zen-mcp-server with multiple AI models
-  - Replace mock scoring with real AI consensus analysis
-  - Keep same UI but now powered by real AI analysis
-  - **User Test**: Submit URL and see real AI-generated credibility analysis
+- [ ] 11. Set up AI agent execution layer for real analysis (USER TESTABLE)
+  - **Research Summary**: Evaluated TypeScript AI libraries (LangChain.js, AutoGen.js, AI SDK, MCP clients). Recommended hybrid approach with generic abstraction layer.
+  - **Architecture**: Create generic `AgentExecutor` interface that abstracts execution strategies:
+    - `StandardExecution`: Single model execution (LangChain.js integration)
+    - `ConsensusExecution`: Multi-model consensus (similar to zen-mcp-server consensus)
+    - `ToolExecution`: Tool-calling workflows
+  - **Implementation Plan**:
+    - Create `IAgentExecutor` interface with generic `execute(task, options)` method
+    - Implement `LangChainExecutor` for standard agent workflows
+    - Implement `ConsensusExecutor` for multi-model consensus decisions
+    - Create `AgentExecutorFactory` to choose execution strategy per task
+    - Add configuration system for model providers and execution preferences
+  - **Integration**: Replace mock scoring with real AI analysis while keeping same UI
+  - **Flexibility**: Abstraction allows switching between implementations (custom consensus, zen-mcp-server, or other solutions) without changing business logic
+  - **User Test**: Submit URL and see real AI-generated credibility analysis with configurable execution strategy
   - _Requirements: 6.1, 6.2, 6.3_
 
 - [ ] 12. Create real social media data crawlers (USER TESTABLE)
