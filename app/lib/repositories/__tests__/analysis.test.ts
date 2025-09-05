@@ -241,3 +241,89 @@ tap.test('AnalysisRepository.findExpired should find expired analyses', async (t
   t.ok(expired.length > 0, 'Should find expired analyses');
   t.ok(expired.some(a => a.profileUrl === expiredData.profileUrl), 'Should include the expired analysis');
 });
+
+// Caching functionality tests
+tap.test('Caching: findValidLatestByProfileUrl should return null when no valid cache exists', async (t) => {
+  const found = await AnalysisRepository.findValidLatestByProfileUrl('https://twitter.com/nocache');
+  t.equal(found, null, 'Should return null when no cached analysis exists');
+});
+
+tap.test('Caching: findValidLatestByProfileUrl should return cached analysis within 24 hours', async (t) => {
+  const cacheData = {
+    ...mockAnalysisData,
+    profileUrl: 'https://twitter.com/cached',
+    expiresAt: new Date(Date.now() + 23 * 60 * 60 * 1000) // 23 hours from now (within cache period)
+  };
+
+  const created = await AnalysisRepository.create(cacheData);
+  const found = await AnalysisRepository.findValidLatestByProfileUrl(cacheData.profileUrl);
+
+  t.ok(found, 'Should find cached analysis');
+  t.equal(found?.id, created.id, 'Should return the cached analysis');
+  t.equal(found?.profileUrl, cacheData.profileUrl, 'Profile URLs should match');
+  t.ok(found?.expiresAt > new Date(), 'Analysis should not be expired');
+});
+
+tap.test('Caching: findValidLatestByProfileUrl should not return expired cache', async (t) => {
+  const expiredCacheData = {
+    ...mockAnalysisData,
+    profileUrl: 'https://twitter.com/expiredcache',
+    expiresAt: new Date(Date.now() - 1000) // 1 second ago (expired)
+  };
+
+  await AnalysisRepository.create(expiredCacheData);
+  const found = await AnalysisRepository.findValidLatestByProfileUrl(expiredCacheData.profileUrl);
+
+  t.equal(found, null, 'Should not return expired cached analysis');
+});
+
+tap.test('Caching: should return most recent valid cache when multiple exist', async (t) => {
+  const profileUrl = 'https://twitter.com/multiplecache';
+
+  // Create older valid cache
+  const olderCache = {
+    ...mockAnalysisData,
+    profileUrl,
+    expiresAt: new Date(Date.now() + 20 * 60 * 60 * 1000) // 20 hours from now
+  };
+  await AnalysisRepository.create(olderCache);
+
+  // Wait a bit to ensure different timestamps
+  await new Promise(resolve => setTimeout(resolve, 10));
+
+  // Create newer valid cache
+  const newerCache = {
+    ...mockAnalysisData,
+    profileUrl,
+    crediScore: 9.5, // Different score to distinguish
+    expiresAt: new Date(Date.now() + 22 * 60 * 60 * 1000) // 22 hours from now
+  };
+  const newerCreated = await AnalysisRepository.create(newerCache);
+
+  const found = await AnalysisRepository.findValidLatestByProfileUrl(profileUrl);
+
+  t.ok(found, 'Should find cached analysis');
+  t.equal(found?.id, newerCreated.id, 'Should return the most recent valid cache');
+  t.equal(found?.crediScore, 9.5, 'Should return the newer analysis with different score');
+});
+
+tap.test('Caching: should handle normalized URLs consistently', async (t) => {
+  const baseUrl = 'https://twitter.com/normalizetest';
+  const urlWithTrailingSlash = 'https://twitter.com/normalizetest/';
+
+  // Create cache with base URL
+  const cacheData = {
+    ...mockAnalysisData,
+    profileUrl: baseUrl,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+  };
+  const created = await AnalysisRepository.create(cacheData);
+
+  // Should find cache with exact URL
+  const foundExact = await AnalysisRepository.findValidLatestByProfileUrl(baseUrl);
+  t.ok(foundExact, 'Should find cache with exact URL');
+  t.equal(foundExact?.id, created.id, 'Should return the cached analysis');
+
+  // Note: URL normalization should be handled at the API level before calling repository
+  // This test verifies that the repository works with exact URL matches
+});

@@ -33,9 +33,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use normalized URL for cache lookup to ensure consistency
+    const normalizedUrl = platformInfo.normalizedUrl;
+
+    // Check for cached results first
+    const cachedAnalysis = await AnalysisRepository.findValidLatestByProfileUrl(normalizedUrl);
+    if (cachedAnalysis) {
+      console.log(`Serving cached analysis for ${normalizedUrl} (ID: ${cachedAnalysis.id})`);
+      return NextResponse.json({
+        success: true,
+        analysisId: cachedAnalysis.id,
+        message: 'Analysis started successfully',
+        analysis: {
+          id: cachedAnalysis.id,
+          profileUrl: cachedAnalysis.profileUrl,
+          platform: cachedAnalysis.platform,
+          username: cachedAnalysis.username,
+          createdAt: cachedAnalysis.createdAt,
+          status: 'started'
+        }
+      });
+    }
+
     // Generate mock analysis result using the mock data generator
     const mockAnalysisResult = generateMockAnalysisResult(
-      platformInfo.normalizedUrl,
+      normalizedUrl,
       validationResult.platform,
       platformInfo.username
     );
@@ -57,6 +79,7 @@ export async function POST(request: NextRequest) {
     };
 
     const analysis = await AnalysisRepository.create(analysisData);
+    console.log(`Created new analysis for ${normalizedUrl} (ID: ${analysis.id})`);
 
     return NextResponse.json({
       success: true,

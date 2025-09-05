@@ -19,8 +19,6 @@ interface AnalysisResult {
   tokensUsed?: number;
 }
 
-
-
 export default function ResultsPage() {
   const params = useParams();
   const router = useRouter();
@@ -50,8 +48,6 @@ export default function ResultsPage() {
       fetchAnalysis();
     }
   }, [params.id]);
-
-
 
   if (loading) {
     return (

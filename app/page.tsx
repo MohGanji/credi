@@ -396,7 +396,7 @@ export default function Home() {
 
             <div className="mt-4 pt-4 border-t border-green-200">
               <p className="text-xs text-green-600">
-                <strong>For testing:</strong> Check your database for a new analysis record with ID: {analysisResult.analysisId}
+                <strong>For testing:</strong> Check your database for analysis record with ID: {analysisResult.analysisId}
               </p>
             </div>
           </div>
