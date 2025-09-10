@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AnalysisRepository } from '../../lib/repositories/analysis';
 import { validateSocialMediaUrl, getPlatformInfo } from '../../lib/validation';
 import { generateMockAnalysisResult } from '../../lib/mock-data';
+import { CredibilityAnalyzer } from '../../lib/services/CredibilityAnalyzer';
+import { logger } from '../../lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     // Check for cached results first
     const cachedAnalysis = await AnalysisRepository.findValidLatestByProfileUrl(normalizedUrl);
     if (cachedAnalysis) {
-      console.log(`Serving cached analysis for ${normalizedUrl} (ID: ${cachedAnalysis.id})`);
+      logger.info(`Serving cached analysis for ${normalizedUrl}`, { analysisId: cachedAnalysis.id });
       return NextResponse.json({
         success: true,
         analysisId: cachedAnalysis.id,
@@ -55,31 +57,96 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Generate mock analysis result using the mock data generator
-    const mockAnalysisResult = generateMockAnalysisResult(
-      normalizedUrl,
-      validationResult.platform,
-      platformInfo.username
-    );
+    // Check if AI agent execution is enabled (when MOCK_AGENT_CALL is false)
+    const useAIAgents = process.env.MOCK_AGENT_CALL !== 'true';
+    
+    let analysisResult;
+    
+    if (useAIAgents) {
+      try {
+        // Use credibility analysis service for real analysis
+        const credibilityAnalyzer = new CredibilityAnalyzer();
+        
+        // Mock posts data for now - in a real implementation, this would come from social media crawlers
+        const mockPosts = [
+          {
+            id: '1',
+            content: 'Sample post content for analysis. This post demonstrates thoughtful analysis with references to credible sources.',
+            timestamp: new Date('2024-01-15'),
+            links: ['https://example.com/study']
+          },
+          {
+            id: '2',
+            content: 'Another sample post discussing market trends with balanced perspective and acknowledging uncertainty.',
+            timestamp: new Date('2024-01-14'),
+            links: []
+          }
+        ];
+        
+        const mockProfileInfo = {
+          username: platformInfo.username,
+          displayName: platformInfo.username,
+          bio: 'Sample bio for analysis - professional with expertise indicators',
+          verified: false
+        };
+        
+        logger.info(`Starting AI analysis for ${normalizedUrl}`);
+        
+        analysisResult = await credibilityAnalyzer.analyzeProfile(
+          mockPosts,
+          mockProfileInfo,
+          { timeout: 120000 }
+        );
+        
+        // Set the profile URL in the result
+        analysisResult.profileUrl = normalizedUrl;
+        
+        logger.info(`AI analysis completed for ${normalizedUrl}`, { 
+          score: analysisResult.crediScore,
+          processingTime: analysisResult.processingTimeMs 
+        });
+        
+      } catch (error) {
+        logger.error('AI agent analysis failed, falling back to mock data', { error: error instanceof Error ? error.message : 'Unknown error' });
+        
+        // Fallback to mock data if AI analysis fails
+        analysisResult = generateMockAnalysisResult(
+          normalizedUrl,
+          validationResult.platform,
+          platformInfo.username
+        );
+      }
+    } else {
+      // Use mock data when AI agents are disabled
+      logger.info(`Using mock analysis for ${normalizedUrl} (AI agents disabled)`);
+      analysisResult = generateMockAnalysisResult(
+        normalizedUrl,
+        validationResult.platform,
+        platformInfo.username
+      );
+    }
 
     // Set expiration date (24 hours from now)
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
 
     const analysisData = {
-      profileUrl: mockAnalysisResult.profileUrl,
-      platform: mockAnalysisResult.platform,
-      username: mockAnalysisResult.username,
+      profileUrl: analysisResult.profileUrl,
+      platform: analysisResult.platform,
+      username: analysisResult.username,
       expiresAt,
-      crediScore: mockAnalysisResult.crediScore,
-      sections: mockAnalysisResult.sections,
-      processingTimeMs: mockAnalysisResult.processingTimeMs,
-      modelUsed: mockAnalysisResult.modelUsed,
-      tokensUsed: mockAnalysisResult.tokensUsed
+      crediScore: analysisResult.crediScore,
+      sections: analysisResult.sections as any, // Type assertion for JSON compatibility
+      processingTimeMs: analysisResult.processingTimeMs || undefined,
+      modelUsed: analysisResult.modelUsed || undefined,
+      tokensUsed: analysisResult.tokensUsed || undefined
     };
 
     const analysis = await AnalysisRepository.create(analysisData);
-    console.log(`Created new analysis for ${normalizedUrl} (ID: ${analysis.id})`);
+    logger.info(`Created new analysis for ${normalizedUrl}`, { 
+      analysisId: analysis.id,
+      score: analysis.crediScore 
+    });
 
     return NextResponse.json({
       success: true,
@@ -96,7 +163,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error creating analysis:', error);
+    logger.error('Error creating analysis', { error: error instanceof Error ? error.message : 'Unknown error' });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

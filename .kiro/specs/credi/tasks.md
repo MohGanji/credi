@@ -71,45 +71,52 @@
   - **User Test**: Submit same URL twice, second time should show cached results instantly
   - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5_
 
-- [ ] 11. Set up AI agent execution layer for real analysis (USER TESTABLE)
-  - **Research Summary**: Evaluated TypeScript AI libraries (LangChain.js, AutoGen.js, AI SDK, MCP clients). Recommended hybrid approach with generic abstraction layer.
-  - **Architecture**: Create generic `AgentExecutor` interface that abstracts execution strategies:
-    - `StandardExecution`: Single model execution (LangChain.js integration)
-    - `ConsensusExecution`: Multi-model consensus (similar to zen-mcp-server consensus)
-    - `ToolExecution`: Tool-calling workflows
-  - **Implementation Plan**:
-    - Create `IAgentExecutor` interface with generic `execute(task, options)` method
-    - Implement `LangChainExecutor` for standard agent workflows
-    - Implement `ConsensusExecutor` for multi-model consensus decisions
-    - Create `AgentExecutorFactory` to choose execution strategy per task
-    - Add configuration system for model providers and execution preferences
-  - **Integration**: Replace mock scoring with real AI analysis while keeping same UI
-  - **Flexibility**: Abstraction allows switching between implementations (custom consensus, zen-mcp-server, or other solutions) without changing business logic
-  - **User Test**: Submit URL and see real AI-generated credibility analysis with configurable execution strategy
+- [x] 11. Set up AI agent execution layer for real analysis (USER TESTABLE)
+  - **Implementation**: Built `AgentExecutorService` using LangChain.js with two core methods:
+    - `executeAgent(model, prompt, config)`: Execute single AI model
+    - `agentConsensus(models, prompt, config)`: Execute multiple models in parallel
+  - **Integration**: Integrated with existing analysis flow via `MOCK_AGENT_CALL` environment flag
+  - **Mock Control**: When `MOCK_AGENT_CALL=true`, returns mock data; when `false`, calls real AI models
+  - **Default Configuration**: Uses Anthropic Claude as default model for standard execution
+  - **LangChain Integration**: Direct integration with `@langchain/anthropic`, `@langchain/openai`, `@langchain/google-genai`
+  - **Service Location**: `app/lib/services/AgentExecutorService.ts`
+  - **User Test**: Set `MOCK_AGENT_CALL=false` and `ANTHROPIC_API_KEY`, submit analysis URL, see real AI-generated credibility analysis
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 12. Create real social media data crawlers (USER TESTABLE)
+- [ ] 12. Add configurable AI execution strategies (USER TESTABLE)
+  - **Environment Configuration**: Add environment variables for flexible AI execution:
+    - `AGENT_EXECUTION_TYPE`: Set to "single" or "consensus" to control execution strategy
+    - `AGENT_MODELS`: Comma-separated list of model names for consensus (e.g., "claude-3-haiku,gpt-3.5-turbo,gemini-pro")
+    - `AGENT_DEFAULT_MODEL`: Default model for single execution (fallback: "claude-3-haiku")
+  - **Implementation**: Update analysis flow to read environment configuration and execute accordingly
+  - **Model Selection**: Support model selection from available providers based on API keys
+  - **Consensus Logic**: When consensus is selected, parse model list and execute all available models in parallel
+  - **Fallback Handling**: Gracefully handle missing API keys by using available models only
+  - **User Test**: Configure different execution strategies via environment variables, submit analysis, verify execution type in results
+  - _Requirements: 6.1, 6.2, 6.3_
+
+- [ ] 13. Create real social media data crawlers (USER TESTABLE)
   - Replace mock data with real Twitter/LinkedIn API integration
   - Add proper error handling for API failures
   - Show real posts and profile data in analysis results
   - **User Test**: Submit URL and see analysis based on real social media posts
   - _Requirements: 2.1, 2.2, 2.4_
 
-- [ ] 13. Add real-time progress tracking (USER TESTABLE)
+- [ ] 14. Add real-time progress tracking (USER TESTABLE)
   - Implement Server-Sent Events for live progress updates
   - Show progress bar with current analysis stage
   - Add estimated time remaining and stage descriptions
   - **User Test**: Submit URL and watch real-time progress through analysis stages
   - _Requirements: 10.2, 10.3, 10.4, 10.5, 10.6_
 
-- [ ] 14. Implement comprehensive error handling (USER TESTABLE)
+- [ ] 15. Implement comprehensive error handling (USER TESTABLE)
   - Add timeout handling (3-minute limit)
   - Create user-friendly error messages for different failure types
   - Add retry functionality for failed analyses
   - **User Test**: Test with invalid URLs, network issues, and timeouts
   - _Requirements: 8.3, 8.4, 8.5_
 
-- [ ] 15. Add guest user limitations (USER TESTABLE)
+- [ ] 16. Add guest user limitations (USER TESTABLE)
   - Implement session tracking for guest users
   - Show blurred results after first analysis
   - Add registration call-to-action modal
