@@ -18,13 +18,29 @@ export class TwitterCrawler extends BaseCrawler {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 600));
 
-    // Simulate error scenarios (5% private, 2% not found)
+    // Simulate error scenarios for testing
     const errorChance = Math.random();
-    if (errorChance < 0.05) {
+    
+    // Test specific usernames for consistent error scenarios
+    if (username.toLowerCase().includes('private')) {
       throw new Error('Profile is private or access restricted');
     }
-    if (errorChance < 0.07) {
+    if (username.toLowerCase().includes('notfound') || username.toLowerCase().includes('deleted')) {
       throw new Error('Profile not found or has been deleted');
+    }
+    if (username.toLowerCase().includes('network') || username.toLowerCase().includes('timeout')) {
+      throw new Error('Network timeout occurred while fetching profile');
+    }
+    
+    // Random error scenarios (reduced for better UX during testing)
+    if (errorChance < 0.02) { // 2% private
+      throw new Error('Profile is private or access restricted');
+    }
+    if (errorChance < 0.03) { // 1% not found
+      throw new Error('Profile not found or has been deleted');
+    }
+    if (errorChance < 0.035) { // 0.5% network error
+      throw new Error('Network error occurred while fetching profile');
     }
 
     // Generate mock profile data

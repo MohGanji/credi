@@ -18,13 +18,29 @@ export class LinkedInCrawler extends BaseCrawler {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 900 + Math.random() * 500));
 
-    // Simulate error scenarios (3% private, 1% not found)
+    // Simulate error scenarios for testing
     const errorChance = Math.random();
-    if (errorChance < 0.03) {
+    
+    // Test specific usernames for consistent error scenarios
+    if (username.toLowerCase().includes('private')) {
       throw new Error('Profile is private or access restricted');
     }
-    if (errorChance < 0.04) {
+    if (username.toLowerCase().includes('notfound') || username.toLowerCase().includes('deleted')) {
       throw new Error('Profile not found or has been deleted');
+    }
+    if (username.toLowerCase().includes('network') || username.toLowerCase().includes('timeout')) {
+      throw new Error('Network timeout occurred while fetching profile');
+    }
+    
+    // Random error scenarios (reduced for better UX during testing)
+    if (errorChance < 0.015) { // 1.5% private
+      throw new Error('Profile is private or access restricted');
+    }
+    if (errorChance < 0.025) { // 1% not found
+      throw new Error('Profile not found or has been deleted');
+    }
+    if (errorChance < 0.03) { // 0.5% network error
+      throw new Error('Network error occurred while fetching profile');
     }
 
     // Generate mock profile data

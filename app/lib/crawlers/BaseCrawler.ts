@@ -15,6 +15,10 @@ export abstract class BaseCrawler {
   private readonly CACHE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
   private readonly RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
   private readonly MAX_REQUESTS_PER_WINDOW = 10;
+  
+  // For testing: simulate rate limiting more aggressively
+  private readonly TEST_RATE_LIMIT_WINDOW = 30 * 1000; // 30 seconds for testing
+  private readonly TEST_MAX_REQUESTS = 3; // Only 3 requests per 30 seconds for testing
 
   /**
    * PUBLIC API: Fetch profile information for a given URL
@@ -158,11 +162,16 @@ export abstract class BaseCrawler {
     const now = Date.now();
     const requests = this.rateLimitTracker.get(this.constructor.name) || [];
     
+    // Use test rate limiting in development for easier testing
+    const isTestMode = process.env.NODE_ENV === 'development';
+    const window = isTestMode ? this.TEST_RATE_LIMIT_WINDOW : this.RATE_LIMIT_WINDOW;
+    const maxRequests = isTestMode ? this.TEST_MAX_REQUESTS : this.MAX_REQUESTS_PER_WINDOW;
+    
     // Remove old requests outside the window
-    const validRequests = requests.filter(time => now - time < this.RATE_LIMIT_WINDOW);
+    const validRequests = requests.filter(time => now - time < window);
     this.rateLimitTracker.set(this.constructor.name, validRequests);
 
-    return validRequests.length < this.MAX_REQUESTS_PER_WINDOW;
+    return validRequests.length < maxRequests;
   }
 
   private recordRequest(): void {
@@ -176,8 +185,12 @@ export abstract class BaseCrawler {
     const requests = this.rateLimitTracker.get(this.constructor.name) || [];
     if (requests.length === 0) return 0;
 
+    // Use test rate limiting in development for easier testing
+    const isTestMode = process.env.NODE_ENV === 'development';
+    const window = isTestMode ? this.TEST_RATE_LIMIT_WINDOW : this.RATE_LIMIT_WINDOW;
+
     const oldestRequest = Math.min(...requests);
-    const timeUntilReset = this.RATE_LIMIT_WINDOW - (Date.now() - oldestRequest);
+    const timeUntilReset = window - (Date.now() - oldestRequest);
     return Math.max(0, Math.ceil(timeUntilReset / 1000));
   }
 
