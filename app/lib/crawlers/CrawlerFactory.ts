@@ -16,9 +16,11 @@ export class CrawlerFactory {
    */
   static async fetchProfile(url: string): Promise<ProfileData> {
     const crawler = this.getCrawler(url);
-    
+
     if (!crawler) {
-      const error = new Error('Unsupported platform. Only Twitter/X and LinkedIn profiles are supported.') as any;
+      const error = new Error(
+        'Unsupported platform. Only Twitter/X and LinkedIn profiles are supported.'
+      ) as any;
       error.code = 'INVALID_URL';
       throw error;
     }
@@ -29,11 +31,16 @@ export class CrawlerFactory {
   /**
    * PUBLIC API: Fetch recent posts for any supported URL
    */
-  static async fetchRecentPosts(url: string, maxCount: number = 20): Promise<Post[]> {
+  static async fetchRecentPosts(
+    url: string,
+    maxCount: number = 20
+  ): Promise<Post[]> {
     const crawler = this.getCrawler(url);
-    
+
     if (!crawler) {
-      const error = new Error('Unsupported platform. Only Twitter/X and LinkedIn profiles are supported.') as any;
+      const error = new Error(
+        'Unsupported platform. Only Twitter/X and LinkedIn profiles are supported.'
+      ) as any;
       error.code = 'INVALID_URL';
       throw error;
     }
@@ -46,13 +53,16 @@ export class CrawlerFactory {
    */
   private static getCrawler(url: string): BaseCrawler | null {
     const twitterCrawler = this.getOrCreateCrawler('twitter', TwitterCrawler);
-    const linkedinCrawler = this.getOrCreateCrawler('linkedin', LinkedInCrawler);
+    const linkedinCrawler = this.getOrCreateCrawler(
+      'linkedin',
+      LinkedInCrawler
+    );
 
     // Check which crawler can handle this URL
     if ((twitterCrawler as any).validateUrl(url)) {
       return twitterCrawler;
     }
-    
+
     if ((linkedinCrawler as any).validateUrl(url)) {
       return linkedinCrawler;
     }
@@ -75,7 +85,7 @@ export class CrawlerFactory {
   }
 
   private static getOrCreateCrawler<T extends BaseCrawler>(
-    key: string, 
+    key: string,
     CrawlerClass: new () => T
   ): T {
     if (!this.crawlers.has(key)) {

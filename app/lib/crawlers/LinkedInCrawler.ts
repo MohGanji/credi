@@ -8,44 +8,56 @@ import { ProfileData, Post } from './types';
 
 export class LinkedInCrawler extends BaseCrawler {
   protected validateUrl(url: string): boolean {
-    const linkedinPattern = /^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+\/?$/;
+    const linkedinPattern =
+      /^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+\/?$/;
     return linkedinPattern.test(url);
   }
 
   protected async scrapeProfile(url: string): Promise<ProfileData> {
     const username = this.extractUsername(url);
-    
+
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 900 + Math.random() * 500));
+    await new Promise((resolve) =>
+      setTimeout(resolve, 900 + Math.random() * 500)
+    );
 
     // Simulate error scenarios for testing
     const errorChance = Math.random();
-    
+
     // Test specific usernames for consistent error scenarios
     if (username.toLowerCase().includes('private')) {
       throw new Error('Profile is private or access restricted');
     }
-    if (username.toLowerCase().includes('notfound') || username.toLowerCase().includes('deleted')) {
+    if (
+      username.toLowerCase().includes('notfound') ||
+      username.toLowerCase().includes('deleted')
+    ) {
       throw new Error('Profile not found or has been deleted');
     }
-    if (username.toLowerCase().includes('network') || username.toLowerCase().includes('timeout')) {
+    if (
+      username.toLowerCase().includes('network') ||
+      username.toLowerCase().includes('timeout')
+    ) {
       throw new Error('Network timeout occurred while fetching profile');
     }
-    
+
     // Random error scenarios (reduced for better UX during testing)
-    if (errorChance < 0.015) { // 1.5% private
+    if (errorChance < 0.015) {
+      // 1.5% private
       throw new Error('Profile is private or access restricted');
     }
-    if (errorChance < 0.025) { // 1% not found
+    if (errorChance < 0.025) {
+      // 1% not found
       throw new Error('Profile not found or has been deleted');
     }
-    if (errorChance < 0.03) { // 0.5% network error
+    if (errorChance < 0.03) {
+      // 0.5% network error
       throw new Error('Network error occurred while fetching profile');
     }
 
     // Generate mock profile data
     const displayName = this.generateDisplayName(username);
-    
+
     return {
       platform: 'linkedin',
       username,
@@ -56,16 +68,18 @@ export class LinkedInCrawler extends BaseCrawler {
       profilePicture: `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0077b5&color=fff&size=128&bold=true`,
       followerCount: Math.floor(Math.random() * 50000) + 500,
       verified: false, // LinkedIn doesn't have verification badges
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
   }
 
   protected async scrapePosts(url: string, maxCount: number): Promise<Post[]> {
     const username = this.extractUsername(url);
     const displayName = this.generateDisplayName(username);
-    
+
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1200 + Math.random() * 600));
+    await new Promise((resolve) =>
+      setTimeout(resolve, 1200 + Math.random() * 600)
+    );
 
     // Simulate error scenarios
     const errorChance = Math.random();
@@ -82,34 +96,38 @@ export class LinkedInCrawler extends BaseCrawler {
 
     for (let i = 0; i < actualCount; i++) {
       const postId = `${username}_linkedin_${Date.now()}_${i}`;
-      const createdAt = new Date(Date.now() - (i * 86400000) - Math.random() * 86400000).toISOString(); // Random times in past days
-      
+      const createdAt = new Date(
+        Date.now() - i * 86400000 - Math.random() * 86400000
+      ).toISOString(); // Random times in past days
+
       // LinkedIn rarely has "shares" in the same way as Twitter retweets, but we'll simulate some
       const isShare = Math.random() < 0.1; // 10% chance
-      
+
       posts.push({
         id: postId,
         content: this.generatePostContent(i, isShare),
         createdAt,
         author: {
           username,
-          displayName
+          displayName,
         },
         metrics: {
           likes: Math.floor(Math.random() * 500) + 5,
           shares: Math.floor(Math.random() * 50) + 1,
           comments: Math.floor(Math.random() * 30) + 1,
-          views: Math.floor(Math.random() * 5000) + 50
+          views: Math.floor(Math.random() * 5000) + 50,
         },
         url: `https://linkedin.com/posts/${username}_${postId}`,
         isRetweet: isShare,
-        originalPost: isShare ? {
-          id: `original_${postId}`,
-          author: {
-            username: this.generateRandomUsername(),
-            displayName: this.generateRandomDisplayName()
-          }
-        } : undefined
+        originalPost: isShare
+          ? {
+              id: `original_${postId}`,
+              author: {
+                username: this.generateRandomUsername(),
+                displayName: this.generateRandomDisplayName(),
+              },
+            }
+          : undefined,
       });
     }
 
@@ -127,9 +145,7 @@ export class LinkedInCrawler extends BaseCrawler {
 
   private generateDisplayName(username: string): string {
     // Convert username to display name (john-doe -> John Doe)
-    return username
-      .replace(/-/g, ' ')
-      .replace(/\b\w/g, l => l.toUpperCase());
+    return username.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
   }
 
   private generateJobTitle(displayName: string): string {
@@ -145,10 +161,12 @@ export class LinkedInCrawler extends BaseCrawler {
       'Developer Advocate at Platform Inc',
       'VP of Engineering at Scale Corp',
       'Frontend Developer at Web Solutions',
-      'DevOps Engineer at Cloud Systems'
+      'DevOps Engineer at Cloud Systems',
     ];
-    
-    const index = displayName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % titles.length;
+
+    const index =
+      displayName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) %
+      titles.length;
     return titles[index];
   }
 
@@ -163,10 +181,12 @@ export class LinkedInCrawler extends BaseCrawler {
       'Academic researcher and industry consultant working at the intersection of technology and society. Published author and frequent speaker on emerging technology trends.',
       'Management consultant helping Fortune 500 companies transform their operations and embrace digital innovation. Expertise in strategy, operations, and change management.',
       'Developer relations professional building communities and empowering developers to succeed. Strong background in technical writing, public speaking, and developer advocacy.',
-      'Engineering leader with experience scaling teams from startup to IPO. Focused on building inclusive engineering cultures and delivering high-quality software products.'
+      'Engineering leader with experience scaling teams from startup to IPO. Focused on building inclusive engineering cultures and delivering high-quality software products.',
     ];
 
-    const index = displayName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % bios.length;
+    const index =
+      displayName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) %
+      bios.length;
     return bios[index];
   }
 
@@ -174,37 +194,53 @@ export class LinkedInCrawler extends BaseCrawler {
     if (isShare) {
       const shareContents = [
         'Excellent insights from my colleague on industry trends. Worth a read for anyone in tech leadership.',
-        'This article perfectly captures the challenges we\'re facing in digital transformation. Highly recommend.',
+        "This article perfectly captures the challenges we're facing in digital transformation. Highly recommend.",
         'Great perspective on the future of remote work. Thanks for sharing your thoughts!',
-        'This research aligns with what we\'re seeing in our organization. Very valuable data.',
-        'Insightful analysis on market trends. This will definitely influence our strategy discussions.'
+        "This research aligns with what we're seeing in our organization. Very valuable data.",
+        'Insightful analysis on market trends. This will definitely influence our strategy discussions.',
       ];
       return shareContents[index % shareContents.length];
     }
 
     const contents = [
-      'Excited to announce that our team has successfully completed a major digital transformation project. The results exceeded our expectations and I\'m proud of what we accomplished together. #DigitalTransformation #TeamWork',
+      "Excited to announce that our team has successfully completed a major digital transformation project. The results exceeded our expectations and I'm proud of what we accomplished together. #DigitalTransformation #TeamWork",
       'Just wrapped up an insightful conference on the future of AI in business. Key takeaway: the organizations that will thrive are those that combine human creativity with AI capabilities. #AI #Innovation #Leadership',
       'Reflecting on my career journey and the mentors who shaped my path. Grateful for the guidance and now committed to paying it forward by mentoring the next generation of professionals. #Mentorship #CareerGrowth',
-      'Our latest product launch has been incredibly well-received by customers. It\'s amazing what happens when you truly listen to user feedback and iterate based on real needs. #ProductManagement #CustomerFirst',
-      'Attended a fascinating workshop on sustainable business practices today. It\'s clear that environmental responsibility isn\'t just good ethics—it\'s good business. #Sustainability #ESG #BusinessStrategy',
-      'Celebrating our team\'s achievement in reducing system downtime by 90% this quarter. This kind of operational excellence doesn\'t happen by accident—it\'s the result of dedicated engineering and continuous improvement. #DevOps #Engineering',
+      "Our latest product launch has been incredibly well-received by customers. It's amazing what happens when you truly listen to user feedback and iterate based on real needs. #ProductManagement #CustomerFirst",
+      "Attended a fascinating workshop on sustainable business practices today. It's clear that environmental responsibility isn't just good ethics—it's good business. #Sustainability #ESG #BusinessStrategy",
+      "Celebrating our team's achievement in reducing system downtime by 90% this quarter. This kind of operational excellence doesn't happen by accident—it's the result of dedicated engineering and continuous improvement. #DevOps #Engineering",
       'Had the privilege of speaking at a university career fair today. The talent and enthusiasm of these students gives me so much hope for the future of our industry. #TalentDevelopment #University #Recruiting',
       'Just finished reading an excellent book on organizational psychology. The insights on team dynamics and motivation are already influencing how I approach leadership challenges. #Leadership #ContinuousLearning',
       'Proud to share that our company has been recognized as a top workplace for diversity and inclusion. This recognition reflects our ongoing commitment to creating an environment where everyone can thrive. #DiversityAndInclusion #CompanyCulture',
-      'Interesting discussion with industry peers about the skills gap in tech. We need to do more to bridge the gap between academic learning and industry needs. Collaboration between education and industry is key. #SkillsGap #Education #TechIndustry'
+      'Interesting discussion with industry peers about the skills gap in tech. We need to do more to bridge the gap between academic learning and industry needs. Collaboration between education and industry is key. #SkillsGap #Education #TechIndustry',
     ];
 
     return contents[index % contents.length];
   }
 
   private generateRandomUsername(): string {
-    const usernames = ['john-smith', 'sarah-johnson', 'mike-chen', 'lisa-davis', 'alex-wilson', 'emma-brown', 'david-lee'];
+    const usernames = [
+      'john-smith',
+      'sarah-johnson',
+      'mike-chen',
+      'lisa-davis',
+      'alex-wilson',
+      'emma-brown',
+      'david-lee',
+    ];
     return usernames[Math.floor(Math.random() * usernames.length)];
   }
 
   private generateRandomDisplayName(): string {
-    const names = ['John Smith', 'Sarah Johnson', 'Mike Chen', 'Lisa Davis', 'Alex Wilson', 'Emma Brown', 'David Lee'];
+    const names = [
+      'John Smith',
+      'Sarah Johnson',
+      'Mike Chen',
+      'Lisa Davis',
+      'Alex Wilson',
+      'Emma Brown',
+      'David Lee',
+    ];
     return names[Math.floor(Math.random() * names.length)];
   }
 
@@ -214,7 +250,7 @@ export class LinkedInCrawler extends BaseCrawler {
   //   // Handle LinkedIn's anti-bot measures
   //   // Parse structured data or HTML
   // }
-  
+
   // private async scrapePosts(url: string, maxCount: number): Promise<Post[]> {
   //   // Use puppeteer, playwright, or HTTP requests to scrape recent posts
   //   // Handle LinkedIn's pagination and authentication requirements

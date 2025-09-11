@@ -49,7 +49,9 @@ export class AnalysisRepository {
   /**
    * Find the most recent analysis by profile URL
    */
-  static async findLatestByProfileUrl(profileUrl: string): Promise<Analysis | null> {
+  static async findLatestByProfileUrl(
+    profileUrl: string
+  ): Promise<Analysis | null> {
     return await prisma.analysis.findFirst({
       where: {
         profileUrl,
@@ -145,7 +147,9 @@ export class AnalysisRepository {
   /**
    * Find valid (non-expired) latest analysis for a profile URL
    */
-  static async findValidLatestByProfileUrl(profileUrl: string): Promise<Analysis | null> {
+  static async findValidLatestByProfileUrl(
+    profileUrl: string
+  ): Promise<Analysis | null> {
     return await prisma.analysis.findFirst({
       where: {
         profileUrl,

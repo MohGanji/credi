@@ -7,15 +7,18 @@ import { ProfileData, Post, CrawlerError } from './types';
 
 export abstract class BaseCrawler {
   // Internal caching and rate limiting
-  private profileCache = new Map<string, { profile: ProfileData; timestamp: number }>();
+  private profileCache = new Map<
+    string,
+    { profile: ProfileData; timestamp: number }
+  >();
   private postsCache = new Map<string, { posts: Post[]; timestamp: number }>();
   private rateLimitTracker = new Map<string, number[]>();
-  
+
   // Configuration
   private readonly CACHE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
   private readonly RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
   private readonly MAX_REQUESTS_PER_WINDOW = 10;
-  
+
   // For testing: simulate rate limiting more aggressively
   private readonly TEST_RATE_LIMIT_WINDOW = 30 * 1000; // 30 seconds for testing
   private readonly TEST_MAX_REQUESTS = 3; // Only 3 requests per 30 seconds for testing
@@ -26,7 +29,10 @@ export abstract class BaseCrawler {
   async fetchProfile(url: string): Promise<ProfileData> {
     // Validate URL
     if (!this.validateUrl(url)) {
-      throw this.createError('INVALID_URL', 'Invalid URL format for this platform');
+      throw this.createError(
+        'INVALID_URL',
+        'Invalid URL format for this platform'
+      );
     }
 
     // Check cache first
@@ -37,7 +43,10 @@ export abstract class BaseCrawler {
 
     // Check rate limiting
     if (!this.canMakeRequest()) {
-      const error = this.createError('RATE_LIMITED', 'Rate limit exceeded. Please try again later.');
+      const error = this.createError(
+        'RATE_LIMITED',
+        'Rate limit exceeded. Please try again later.'
+      );
       error.retryAfter = this.getRetryAfter();
       throw error;
     }
@@ -48,10 +57,10 @@ export abstract class BaseCrawler {
     try {
       // Fetch profile using platform-specific implementation
       const profile = await this.scrapeProfile(url);
-      
+
       // Cache result
       this.setProfileCache(url, profile);
-      
+
       return profile;
     } catch (error) {
       throw this.handleError(error);
@@ -64,12 +73,18 @@ export abstract class BaseCrawler {
   async fetchRecentPosts(url: string, maxCount: number = 20): Promise<Post[]> {
     // Validate URL
     if (!this.validateUrl(url)) {
-      throw this.createError('INVALID_URL', 'Invalid URL format for this platform');
+      throw this.createError(
+        'INVALID_URL',
+        'Invalid URL format for this platform'
+      );
     }
 
     // Validate maxCount
     if (maxCount <= 0 || maxCount > 100) {
-      throw this.createError('INVALID_URL', 'maxCount must be between 1 and 100');
+      throw this.createError(
+        'INVALID_URL',
+        'maxCount must be between 1 and 100'
+      );
     }
 
     // Check cache first
@@ -81,7 +96,10 @@ export abstract class BaseCrawler {
 
     // Check rate limiting
     if (!this.canMakeRequest()) {
-      const error = this.createError('RATE_LIMITED', 'Rate limit exceeded. Please try again later.');
+      const error = this.createError(
+        'RATE_LIMITED',
+        'Rate limit exceeded. Please try again later.'
+      );
       error.retryAfter = this.getRetryAfter();
       throw error;
     }
@@ -92,10 +110,10 @@ export abstract class BaseCrawler {
     try {
       // Fetch posts using platform-specific implementation
       const posts = await this.scrapePosts(url, maxCount);
-      
+
       // Cache result
       this.setPostsCache(cacheKey, posts);
-      
+
       return posts;
     } catch (error) {
       throw this.handleError(error);
@@ -107,7 +125,10 @@ export abstract class BaseCrawler {
    */
   protected abstract validateUrl(url: string): boolean;
   protected abstract scrapeProfile(url: string): Promise<ProfileData>;
-  protected abstract scrapePosts(url: string, maxCount: number): Promise<Post[]>;
+  protected abstract scrapePosts(
+    url: string,
+    maxCount: number
+  ): Promise<Post[]>;
 
   /**
    * Internal cache management for profiles
@@ -128,7 +149,7 @@ export abstract class BaseCrawler {
   private setProfileCache(url: string, profile: ProfileData): void {
     this.profileCache.set(url, {
       profile: { ...profile, lastUpdated: new Date().toISOString() },
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -151,7 +172,7 @@ export abstract class BaseCrawler {
   private setPostsCache(cacheKey: string, posts: Post[]): void {
     this.postsCache.set(cacheKey, {
       posts,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -161,14 +182,18 @@ export abstract class BaseCrawler {
   private canMakeRequest(): boolean {
     const now = Date.now();
     const requests = this.rateLimitTracker.get(this.constructor.name) || [];
-    
+
     // Use test rate limiting in development for easier testing
     const isTestMode = process.env.NODE_ENV === 'development';
-    const window = isTestMode ? this.TEST_RATE_LIMIT_WINDOW : this.RATE_LIMIT_WINDOW;
-    const maxRequests = isTestMode ? this.TEST_MAX_REQUESTS : this.MAX_REQUESTS_PER_WINDOW;
-    
+    const window = isTestMode
+      ? this.TEST_RATE_LIMIT_WINDOW
+      : this.RATE_LIMIT_WINDOW;
+    const maxRequests = isTestMode
+      ? this.TEST_MAX_REQUESTS
+      : this.MAX_REQUESTS_PER_WINDOW;
+
     // Remove old requests outside the window
-    const validRequests = requests.filter(time => now - time < window);
+    const validRequests = requests.filter((time) => now - time < window);
     this.rateLimitTracker.set(this.constructor.name, validRequests);
 
     return validRequests.length < maxRequests;
@@ -187,7 +212,9 @@ export abstract class BaseCrawler {
 
     // Use test rate limiting in development for easier testing
     const isTestMode = process.env.NODE_ENV === 'development';
-    const window = isTestMode ? this.TEST_RATE_LIMIT_WINDOW : this.RATE_LIMIT_WINDOW;
+    const window = isTestMode
+      ? this.TEST_RATE_LIMIT_WINDOW
+      : this.RATE_LIMIT_WINDOW;
 
     const oldestRequest = Math.min(...requests);
     const timeUntilReset = window - (Date.now() - oldestRequest);
@@ -197,7 +224,10 @@ export abstract class BaseCrawler {
   /**
    * Internal error handling
    */
-  private createError(code: CrawlerError['code'], message: string): CrawlerError {
+  private createError(
+    code: CrawlerError['code'],
+    message: string
+  ): CrawlerError {
     const error = new Error(message) as Error & CrawlerError;
     error.code = code;
     error.message = message;
@@ -207,19 +237,40 @@ export abstract class BaseCrawler {
   private handleError(error: unknown): CrawlerError {
     if (error instanceof Error) {
       // Handle specific error types that crawlers might throw
-      if (error.message.includes('private') || error.message.includes('access')) {
-        return this.createError('PRIVATE_PROFILE', 'This profile appears to be private or access is restricted');
-      }
-      
-      if (error.message.includes('not found') || error.message.includes('404')) {
-        return this.createError('NOT_FOUND', 'Profile not found. Please check the URL and try again.');
+      if (
+        error.message.includes('private') ||
+        error.message.includes('access')
+      ) {
+        return this.createError(
+          'PRIVATE_PROFILE',
+          'This profile appears to be private or access is restricted'
+        );
       }
 
-      if (error.message.includes('network') || error.message.includes('timeout')) {
-        return this.createError('NETWORK_ERROR', 'Network error occurred. Please check your connection and try again.');
+      if (
+        error.message.includes('not found') ||
+        error.message.includes('404')
+      ) {
+        return this.createError(
+          'NOT_FOUND',
+          'Profile not found. Please check the URL and try again.'
+        );
+      }
+
+      if (
+        error.message.includes('network') ||
+        error.message.includes('timeout')
+      ) {
+        return this.createError(
+          'NETWORK_ERROR',
+          'Network error occurred. Please check your connection and try again.'
+        );
       }
     }
 
-    return this.createError('NETWORK_ERROR', 'An unexpected error occurred while fetching information');
+    return this.createError(
+      'NETWORK_ERROR',
+      'An unexpected error occurred while fetching information'
+    );
   }
 }

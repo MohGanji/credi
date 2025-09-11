@@ -22,7 +22,8 @@ export interface PlatformInfo {
  * Supports both twitter.com and x.com domains
  */
 export function validateTwitterUrl(url: string): boolean {
-  const twitterPattern = /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/?$/;
+  const twitterPattern =
+    /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/?$/;
   return twitterPattern.test(url);
 }
 
@@ -31,7 +32,8 @@ export function validateTwitterUrl(url: string): boolean {
  * Supports standard LinkedIn profile format
  */
 export function validateLinkedInUrl(url: string): boolean {
-  const linkedinPattern = /^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+\/?$/;
+  const linkedinPattern =
+    /^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+\/?$/;
   return linkedinPattern.test(url);
 }
 
@@ -52,17 +54,22 @@ export function detectPlatform(url: string): SupportedPlatform | null {
 /**
  * Extracts username from a validated social media URL
  */
-export function extractUsername(url: string, platform: SupportedPlatform): string {
+export function extractUsername(
+  url: string,
+  platform: SupportedPlatform
+): string {
   try {
     const urlObj = new URL(url);
     const pathname = urlObj.pathname;
-    
+
     // Validate that the URL matches the expected platform
     const detectedPlatform = detectPlatform(url);
     if (detectedPlatform !== platform) {
-      throw new Error(`URL platform mismatch: expected ${platform}, but URL is for ${detectedPlatform || 'unknown platform'}`);
+      throw new Error(
+        `URL platform mismatch: expected ${platform}, but URL is for ${detectedPlatform || 'unknown platform'}`
+      );
     }
-    
+
     switch (platform) {
       case 'twitter':
         // Extract username from /username or /username/
@@ -88,7 +95,7 @@ export function normalizeUrl(url: string, platform: SupportedPlatform): string {
   try {
     const urlObj = new URL(url);
     const username = extractUsername(url, platform);
-    
+
     switch (platform) {
       case 'twitter':
         // Normalize to x.com format
@@ -113,28 +120,29 @@ export function validateSocialMediaUrl(url: string): ValidationResult {
   if (!url || typeof url !== 'string') {
     return {
       isValid: false,
-      error: 'URL is required and must be a string'
+      error: 'URL is required and must be a string',
     };
   }
 
   // Trim whitespace
   const trimmedUrl = url.trim();
-  
+
   // Check if URL is empty after trimming
   if (!trimmedUrl) {
     return {
       isValid: false,
-      error: 'URL is required and must be a string'
+      error: 'URL is required and must be a string',
     };
   }
 
   // Detect platform
   const platform = detectPlatform(trimmedUrl);
-  
+
   if (!platform) {
     return {
       isValid: false,
-      error: 'Unsupported platform. Only Twitter/X and LinkedIn profiles are supported.'
+      error:
+        'Unsupported platform. Only Twitter/X and LinkedIn profiles are supported.',
     };
   }
 
@@ -142,25 +150,25 @@ export function validateSocialMediaUrl(url: string): ValidationResult {
   try {
     // Validate URL format
     new URL(trimmedUrl);
-    
+
     // Extract username to ensure it's valid
     const username = extractUsername(trimmedUrl, platform);
-    
+
     if (!username) {
       return {
         isValid: false,
-        error: 'Invalid profile URL format. Username could not be extracted.'
+        error: 'Invalid profile URL format. Username could not be extracted.',
       };
     }
 
     return {
       isValid: true,
-      platform
+      platform,
     };
   } catch (error) {
     return {
       isValid: false,
-      error: 'Invalid URL format'
+      error: 'Invalid URL format',
     };
   }
 }
@@ -170,7 +178,7 @@ export function validateSocialMediaUrl(url: string): ValidationResult {
  */
 export function getPlatformInfo(url: string): PlatformInfo | null {
   const validation = validateSocialMediaUrl(url);
-  
+
   if (!validation.isValid || !validation.platform) {
     return null;
   }
@@ -178,11 +186,11 @@ export function getPlatformInfo(url: string): PlatformInfo | null {
   try {
     const username = extractUsername(url, validation.platform);
     const normalizedUrl = normalizeUrl(url, validation.platform);
-    
+
     return {
       platform: validation.platform,
       username,
-      normalizedUrl
+      normalizedUrl,
     };
   } catch (error) {
     return null;
@@ -199,6 +207,8 @@ export function getSupportedPlatforms(): SupportedPlatform[] {
 /**
  * Checks if a platform is supported
  */
-export function isPlatformSupported(platform: string): platform is SupportedPlatform {
+export function isPlatformSupported(
+  platform: string
+): platform is SupportedPlatform {
   return getSupportedPlatforms().includes(platform as SupportedPlatform);
 }

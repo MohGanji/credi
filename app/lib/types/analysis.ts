@@ -2,11 +2,11 @@
 
 // Overview section data
 export interface OverviewSectionData {
-  "Sampled Posts": string;
-  "Focus Areas": string;
-  "Analysis Date": string;
-  "Platform": string;
-  "Profile Status": string;
+  'Sampled Posts': string;
+  'Focus Areas': string;
+  'Analysis Date': string;
+  Platform: string;
+  'Profile Status': string;
   [key: string]: string; // Allow additional string fields
 }
 
@@ -18,7 +18,7 @@ export interface StrengthsSectionData {
 // Criteria evaluation result
 export interface CriteriaEvaluation {
   criterion: string;
-  status: "pass" | "warning" | "fail";
+  status: 'pass' | 'warning' | 'fail';
   evaluation: string;
   examples?: string[];
 }
@@ -40,14 +40,14 @@ export type RepresentativePostsSectionData = RepresentativePost[];
 
 // Score justification section data
 export interface ScoreJustificationSectionData {
-  "Why Not Higher"?: string[];
-  "Why Not Lower"?: string[];
-  "Key Factors"?: string[];
+  'Why Not Higher'?: string[];
+  'Why Not Lower'?: string[];
+  'Key Factors'?: string[];
   [justificationCategory: string]: string[] | undefined; // Allow additional justification categories
 }
 
 // Union type for all possible section data types
-export type SectionData = 
+export type SectionData =
   | OverviewSectionData
   | StrengthsSectionData
   | CriteriaEvaluationSectionData
@@ -63,32 +63,32 @@ export interface AnalysisSection {
 
 // Specific section types for better type checking
 export interface OverviewSection extends AnalysisSection {
-  name: "overview";
+  name: 'overview';
   data: OverviewSectionData;
 }
 
 export interface StrengthsSection extends AnalysisSection {
-  name: "strengths";
+  name: 'strengths';
   data: StrengthsSectionData;
 }
 
 export interface CriteriaEvaluationSection extends AnalysisSection {
-  name: "criteria_evaluation";
+  name: 'criteria_evaluation';
   data: CriteriaEvaluationSectionData;
 }
 
 export interface RepresentativePostsSection extends AnalysisSection {
-  name: "representative_posts";
+  name: 'representative_posts';
   data: RepresentativePostsSectionData;
 }
 
 export interface ScoreJustificationSection extends AnalysisSection {
-  name: "score_justification";
+  name: 'score_justification';
   data: ScoreJustificationSectionData;
 }
 
 // Union type for all specific section types
-export type TypedAnalysisSection = 
+export type TypedAnalysisSection =
   | OverviewSection
   | StrengthsSection
   | CriteriaEvaluationSection

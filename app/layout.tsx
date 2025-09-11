@@ -3,7 +3,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Credi',
-  description: 'Cut through the noise and find which voices are actually credible and worth trusting.',
+  description:
+    'Cut through the noise and find which voices are actually credible and worth trusting.',
 };
 
 export default function RootLayout({

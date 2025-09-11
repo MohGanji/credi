@@ -8,7 +8,7 @@
 
 - [ ] 2. Extend AgentExecutorService with optional schema validation
   - Add optional generic schema parameter to executeAgent method signature
-  - Add optional generic schema parameter to agentConsensus method signature  
+  - Add optional generic schema parameter to agentConsensus method signature
   - Implement backward compatibility ensuring existing calls work unchanged
   - _Requirements: 1.1, 7.1, 7.2_
 

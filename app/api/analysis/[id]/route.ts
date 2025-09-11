@@ -37,9 +37,8 @@ export async function GET(
       sections: analysis.sections,
       processingTimeMs: analysis.processingTimeMs,
       modelUsed: analysis.modelUsed,
-      tokensUsed: analysis.tokensUsed
+      tokensUsed: analysis.tokensUsed,
     });
-
   } catch (error) {
     console.error('Error fetching analysis:', error);
     return NextResponse.json(

@@ -41,7 +41,12 @@ export interface Post {
 }
 
 export interface CrawlerError {
-  code: 'INVALID_URL' | 'PRIVATE_PROFILE' | 'NOT_FOUND' | 'RATE_LIMITED' | 'NETWORK_ERROR';
+  code:
+    | 'INVALID_URL'
+    | 'PRIVATE_PROFILE'
+    | 'NOT_FOUND'
+    | 'RATE_LIMITED'
+    | 'NETWORK_ERROR';
   message: string;
   retryAfter?: number;
 }

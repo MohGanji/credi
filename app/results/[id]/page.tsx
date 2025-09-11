@@ -30,15 +30,17 @@ export default function ResultsPage() {
     const fetchAnalysis = async () => {
       try {
         const response = await fetch(`/api/analysis/${params.id}`);
-        
+
         if (!response.ok) {
           throw new Error('Analysis not found');
         }
-        
+
         const data = await response.json();
         setAnalysis(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load analysis');
+        setError(
+          err instanceof Error ? err.message : 'Failed to load analysis'
+        );
       } finally {
         setLoading(false);
       }
@@ -65,7 +67,9 @@ export default function ResultsPage() {
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="text-center">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Analysis</h2>
+            <h2 className="text-lg font-semibold text-red-800 mb-2">
+              Error Loading Analysis
+            </h2>
             <p className="text-red-600 mb-4">{error}</p>
             <button
               onClick={() => router.push('/')}
@@ -97,34 +101,62 @@ export default function ResultsPage() {
           onClick={() => router.push('/')}
           className="text-blue-600 hover:text-blue-800 mb-4 flex items-center"
         >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          <svg
+            className="w-4 h-4 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
           Back to Analysis
         </button>
-        
+
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="mb-4">
-            <h1 className="text-2xl font-bold text-gray-900">Credibility Analysis</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Credibility Analysis
+            </h1>
             <p className="text-gray-600">
-              {analysis.username} on {analysis.platform === 'twitter' ? 'Twitter/X' : 'LinkedIn'}
+              {analysis.username} on{' '}
+              {analysis.platform === 'twitter' ? 'Twitter/X' : 'LinkedIn'}
             </p>
           </div>
-          
+
           <div className="text-sm text-gray-500 space-y-1">
-            <p>Analysis completed: {new Date(analysis.createdAt).toLocaleString()}</p>
-            <p>Profile URL: <a href={analysis.profileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{analysis.profileUrl}</a></p>
+            <p>
+              Analysis completed:{' '}
+              {new Date(analysis.createdAt).toLocaleString()}
+            </p>
+            <p>
+              Profile URL:{' '}
+              <a
+                href={analysis.profileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                {analysis.profileUrl}
+              </a>
+            </p>
             {analysis.processingTimeMs && (
-              <p>Processing time: {Math.round(analysis.processingTimeMs / 1000)}s</p>
+              <p>
+                Processing time: {Math.round(analysis.processingTimeMs / 1000)}s
+              </p>
             )}
           </div>
         </div>
       </div>
 
       {/* Dynamic Analysis Visualization */}
-      <AnalysisVisualizer 
-        sections={analysis.sections} 
-        crediScore={analysis.crediScore} 
+      <AnalysisVisualizer
+        sections={analysis.sections}
+        crediScore={analysis.crediScore}
       />
 
       {/* Footer */}

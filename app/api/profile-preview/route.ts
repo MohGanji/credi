@@ -22,42 +22,31 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      profile
+      profile,
     });
-
   } catch (error: any) {
     console.error('Error in profile preview API:', error);
-    
+
     // Handle specific error codes from crawlers
     switch (error?.code) {
       case 'INVALID_URL':
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: error.message }, { status: 400 });
       case 'PRIVATE_PROFILE':
-        return NextResponse.json(
-          { error: error.message },
-          { status: 403 }
-        );
+        return NextResponse.json({ error: error.message }, { status: 403 });
       case 'NOT_FOUND':
-        return NextResponse.json(
-          { error: error.message },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: error.message }, { status: 404 });
       case 'RATE_LIMITED':
         return NextResponse.json(
           { error: error.message, retryAfter: error.retryAfter },
-          { 
+          {
             status: 429,
-            headers: error.retryAfter ? { 'Retry-After': error.retryAfter.toString() } : {}
+            headers: error.retryAfter
+              ? { 'Retry-After': error.retryAfter.toString() }
+              : {},
           }
         );
       case 'NETWORK_ERROR':
-        return NextResponse.json(
-          { error: error.message },
-          { status: 502 }
-        );
+        return NextResponse.json({ error: error.message }, { status: 502 });
       default:
         return NextResponse.json(
           { error: error?.message || 'Failed to fetch profile information' },
