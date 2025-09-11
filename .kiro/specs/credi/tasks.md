@@ -99,7 +99,7 @@
   - **User Test**: Enter various profile URLs, see accurate profile information displayed
   - _Requirements: 2.1, 2.2_
 
-- [ ] 11.3. Update UI to single-button workflow (USER TESTABLE)
+- [x] 11.3. Update UI to single-button workflow (USER TESTABLE)
   - Remove separate "Validate" and "Analyze" buttons
   - Replace with single "Analyze Profile" button that only appears after profile preview loads
   - Update form state management to handle automatic preview and single-action analysis
@@ -110,8 +110,7 @@
 - [ ] 11.4. Add profile preview error handling and edge cases (USER TESTABLE)
   - Handle cases where profile information cannot be fetched (private, deleted, invalid)
   - Show appropriate error messages for different failure scenarios
-  - Allow manual override to proceed with analysis even if preview fails
-  - Add retry mechanism for temporary network failures
+  - When fails to fetch profile for network or unknown reasons, should prompt user to either retry or refresh the page.
   - **User Test**: Test with private profiles, invalid URLs, and network issues
   - _Requirements: 8.3, 8.4_
 
