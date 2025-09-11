@@ -83,6 +83,38 @@
   - **User Test**: Set `MOCK_AGENT_CALL=false` and `ANTHROPIC_API_KEY`, submit analysis URL, see real AI-generated credibility analysis
   - _Requirements: 6.1, 6.2, 6.3_
 
+- [ ] 11.1. Add automatic profile preview on URL input (USER TESTABLE)
+  - Implement debounced URL input handling (500ms delay after typing stops)
+  - Create profile preview API endpoint that fetches basic profile info (name, picture, bio)
+  - Add profile preview component that displays fetched profile information
+  - Show loading state while fetching profile data
+  - **User Test**: Type or paste URL, see profile preview appear automatically after brief delay
+  - _Requirements: 1.1, 11.1_
+
+- [ ] 11.2. Create profile information fetching service (USER TESTABLE)
+  - Build service to extract profile information from social media URLs
+  - Implement basic profile scraping for Twitter/LinkedIn (name, profile picture, bio)
+  - Add error handling for private profiles or invalid URLs
+  - Cache profile information to avoid repeated requests
+  - **User Test**: Enter various profile URLs, see accurate profile information displayed
+  - _Requirements: 2.1, 2.2_
+
+- [ ] 11.3. Update UI to single-button workflow (USER TESTABLE)
+  - Remove separate "Validate" and "Analyze" buttons
+  - Replace with single "Analyze Profile" button that only appears after profile preview loads
+  - Update form state management to handle automatic preview and single-action analysis
+  - Add clear visual confirmation that correct profile was found
+  - **User Test**: Enter URL, see profile preview, click single "Analyze" button to start analysis
+  - _Requirements: 10.1, 11.1_
+
+- [ ] 11.4. Add profile preview error handling and edge cases (USER TESTABLE)
+  - Handle cases where profile information cannot be fetched (private, deleted, invalid)
+  - Show appropriate error messages for different failure scenarios
+  - Allow manual override to proceed with analysis even if preview fails
+  - Add retry mechanism for temporary network failures
+  - **User Test**: Test with private profiles, invalid URLs, and network issues
+  - _Requirements: 8.3, 8.4_
+
 - [ ] 12. Add configurable AI execution strategies (USER TESTABLE)
   - **Environment Configuration**: Add environment variables for flexible AI execution:
     - `AGENT_EXECUTION_TYPE`: Set to "single" or "consensus" to control execution strategy
