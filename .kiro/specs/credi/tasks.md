@@ -83,7 +83,7 @@
   - **User Test**: Set `MOCK_AGENT_CALL=false` and `ANTHROPIC_API_KEY`, submit analysis URL, see real AI-generated credibility analysis
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 11.1. Add automatic profile preview on URL input (USER TESTABLE)
+- [x] 11.1. Add automatic profile preview on URL input (USER TESTABLE)
   - Implement debounced URL input handling (500ms delay after typing stops)
   - Create profile preview API endpoint that fetches basic profile info (name, picture, bio)
   - Add profile preview component that displays fetched profile information
