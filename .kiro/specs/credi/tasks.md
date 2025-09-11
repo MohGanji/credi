@@ -91,7 +91,7 @@
   - **User Test**: Type or paste URL, see profile preview appear automatically after brief delay
   - _Requirements: 1.1, 11.1_
 
-- [ ] 11.2. Create profile information fetching service (USER TESTABLE)
+- [x] 11.2. Create profile information fetching service (USER TESTABLE)
   - Build service to extract profile information from social media URLs
   - Implement basic profile scraping for Twitter/LinkedIn (name, profile picture, bio)
   - Add error handling for private profiles or invalid URLs
