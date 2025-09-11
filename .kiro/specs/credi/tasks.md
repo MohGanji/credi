@@ -114,7 +114,7 @@
   - **User Test**: Test with private profiles, invalid URLs, and network issues
   - _Requirements: 8.3, 8.4_
 
-- [ ] 12. Add configurable AI execution strategies (USER TESTABLE)
+- [x] 12. Add configurable AI execution strategies (USER TESTABLE)
   - **Environment Configuration**: Add environment variables for flexible AI execution:
     - `AGENT_EXECUTION_TYPE`: Set to "single" or "consensus" to control execution strategy
     - `AGENT_MODELS`: Comma-separated list of model names for consensus (e.g., "claude-3-haiku,gpt-3.5-turbo,gemini-pro")
@@ -127,7 +127,9 @@
   - _Requirements: 6.1, 6.2, 6.3_
 
 - [ ] 13. Create real social media data crawlers (USER TESTABLE)
+  - Move mock social media crawlers to new files so we can use them for testing.
   - Replace mock data with real Twitter/LinkedIn API integration
+  - Enable switching between mock and real data crawling via env variables
   - Add proper error handling for API failures
   - Show real posts and profile data in analysis results
   - **User Test**: Submit URL and see analysis based on real social media posts
