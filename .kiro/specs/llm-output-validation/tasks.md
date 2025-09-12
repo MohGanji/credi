@@ -5,7 +5,7 @@
   - No need for zod-to-json-schema as LangChain handles schema conversion internally
   - _Requirements: 1.1, 2.1_
 
-- [ ] 2. Extend AgentExecutorService with LangChain structured output support
+- [x] 2. Extend AgentExecutorService with LangChain structured output support
   - Add method overloads to executeAgent and agentConsensus for type safety
   - When schema provided, return parsed type directly (not AgentResponse)
   - When no schema provided, return AgentResponse as before for backward compatibility

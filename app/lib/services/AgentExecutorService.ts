@@ -3,6 +3,7 @@ import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { HumanMessage } from '@langchain/core/messages';
+import { z } from 'zod';
 
 export interface ModelConfig {
   name: string;
@@ -17,35 +18,56 @@ export interface AgentConfig {
   timeout?: number;
 }
 
-export interface AgentResponse {
-  content: string;
+export interface AgentResponse<T = string> {
+  content: T;
   model: string;
   tokensUsed?: number;
   processingTime: number;
 }
 
-export interface ConsensusResponse {
-  responses: AgentResponse[];
+export interface ConsensusResponse<T = string> {
+  responses: AgentResponse<T>[];
   consensus?: string;
   processingTime: number;
 }
 
 export class AgentExecutorService {
   /**
-   * Execute a single agent with a model and prompt
+   * Execute a single agent with structured output validation
+   */
+  async executeAgent<T>(
+    model: ModelConfig,
+    prompt: string,
+    config: AgentConfig | undefined,
+    schema: z.ZodSchema<T>
+  ): Promise<AgentResponse<T>>;
+
+  /**
+   * Execute a single agent with a model and prompt (backward compatibility)
    */
   async executeAgent(
     model: ModelConfig,
     prompt: string,
     config?: AgentConfig
-  ): Promise<AgentResponse> {
+  ): Promise<AgentResponse<string>>;
+
+  /**
+   * Execute a single agent with a model and prompt
+   */
+  async executeAgent<T>(
+    model: ModelConfig,
+    prompt: string,
+    config?: AgentConfig,
+    schema?: z.ZodSchema<T>
+  ): Promise<AgentResponse<T> | AgentResponse<string>> {
     const startTime = Date.now();
-    const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const executionId = `exec_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
     console.log(`[AgentExecutor] Starting single agent execution`, {
       executionId,
       model: model.name,
       promptLength: prompt.length,
+      structuredOutput: !!schema,
       config: {
         temperature: config?.temperature ?? model.temperature ?? 0.7,
         maxTokens: config?.maxTokens ?? model.maxTokens ?? 4000,
@@ -59,6 +81,38 @@ export class AgentExecutorService {
         executionId,
       });
 
+      // If schema is provided, use structured output
+      if (schema) {
+        console.log(`[AgentExecutor] Using structured output with schema`, {
+          executionId,
+          model: model.name,
+        });
+
+        const structuredModel = langchainModel.withStructuredOutput(schema);
+        const result = await structuredModel.invoke([new HumanMessage(prompt)]);
+        const processingTime = Date.now() - startTime;
+        
+        // Estimate tokens based on the structured result
+        const resultString = JSON.stringify(result);
+        const tokensUsed = this.estimateTokens(prompt + resultString);
+
+        console.log(`[AgentExecutor] Structured output execution completed`, {
+          executionId,
+          model: model.name,
+          processingTime,
+          tokensUsed,
+          resultType: typeof result,
+        });
+
+        return {
+          content: result as T,
+          model: model.name,
+          tokensUsed,
+          processingTime,
+        } as AgentResponse<T>;
+      }
+
+      // Backward compatibility: return AgentResponse when no schema provided
       const response = await langchainModel.invoke([new HumanMessage(prompt)]);
       const content = response.content as string;
       const processingTime = Date.now() - startTime;
@@ -78,14 +132,22 @@ export class AgentExecutorService {
         model: model.name,
         tokensUsed,
         processingTime,
-      };
+      } as AgentResponse<string>;
     } catch (error) {
       console.error(`[AgentExecutor] Single agent execution failed`, {
         executionId,
         model: model.name,
+        structuredOutput: !!schema,
         error: error instanceof Error ? error.message : 'Unknown error',
         processingTime: Date.now() - startTime,
       });
+      
+      if (schema) {
+        throw new Error(
+          `Structured output failed for ${model.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+      
       throw new Error(
         `Agent execution failed for ${model.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -93,21 +155,42 @@ export class AgentExecutorService {
   }
 
   /**
-   * Execute multiple agents in parallel and return all responses
+   * Execute multiple agents in parallel with structured output validation
+   */
+  async agentConsensus<T>(
+    models: ModelConfig[],
+    prompt: string,
+    config: AgentConfig | undefined,
+    schema: z.ZodSchema<T>
+  ): Promise<ConsensusResponse<T>>;
+
+  /**
+   * Execute multiple agents in parallel and return all responses (backward compatibility)
    */
   async agentConsensus(
     models: ModelConfig[],
     prompt: string,
     config?: AgentConfig
-  ): Promise<ConsensusResponse> {
+  ): Promise<ConsensusResponse<string>>;
+
+  /**
+   * Execute multiple agents in parallel and return all responses
+   */
+  async agentConsensus<T>(
+    models: ModelConfig[],
+    prompt: string,
+    config?: AgentConfig,
+    schema?: z.ZodSchema<T>
+  ): Promise<ConsensusResponse<T> | ConsensusResponse<string>> {
     const startTime = Date.now();
-    const consensusId = `consensus_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const consensusId = `consensus_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
     console.log(`[AgentExecutor] Starting consensus execution`, {
       consensusId,
       modelCount: models.length,
       models: models.map((m) => m.name),
       promptLength: prompt.length,
+      structuredOutput: !!schema,
       config,
     });
 
@@ -116,7 +199,87 @@ export class AgentExecutorService {
     }
 
     try {
-      // Execute all models in parallel
+      // If schema is provided, use structured output for all models
+      if (schema) {
+        console.log(
+          `[AgentExecutor] Executing ${models.length} models in parallel with structured output`,
+          { consensusId }
+        );
+        
+        const promises = models.map((model, index) => {
+          console.log(
+            `[AgentExecutor] Queuing structured model ${index + 1}/${models.length}: ${model.name}`,
+            { consensusId }
+          );
+          return this.executeAgent(model, prompt, config, schema);
+        });
+
+        const responses = await Promise.allSettled(promises);
+
+        // Filter successful responses
+        const successfulResponses = responses
+          .filter(
+            (result): result is PromiseFulfilledResult<AgentResponse<T>> =>
+              result.status === 'fulfilled'
+          )
+          .map((result) => result.value);
+
+        // Log any failures
+        const failures = responses
+          .filter(
+            (result): result is PromiseRejectedResult =>
+              result.status === 'rejected'
+          )
+          .map((result) => result.reason);
+
+        console.log(`[AgentExecutor] Structured consensus execution results`, {
+          consensusId,
+          totalModels: models.length,
+          successfulResponses: successfulResponses.length,
+          failedResponses: failures.length,
+          successfulModels: successfulResponses.map((r) => r.model),
+          failures: failures.map((f) => f.message || f.toString()),
+          totalProcessingTime: Date.now() - startTime,
+        });
+
+        if (successfulResponses.length === 0) {
+          console.error(`[AgentExecutor] All models failed in structured consensus`, {
+            consensusId,
+            failures,
+          });
+          throw new Error('All models failed to execute with structured output');
+        }
+
+        if (failures.length > 0) {
+          console.warn(`[AgentExecutor] Some models failed during structured consensus`, {
+            consensusId,
+            failureCount: failures.length,
+            failures: failures.map((f) => f.message || f.toString()),
+          });
+        }
+
+        const consensusResult = {
+          responses: successfulResponses,
+          processingTime: Date.now() - startTime,
+        };
+
+        console.log(`[AgentExecutor] Structured consensus completed successfully`, {
+          consensusId,
+          responseCount: successfulResponses.length,
+          totalTokens: successfulResponses.reduce(
+            (sum, r) => sum + (r.tokensUsed || 0),
+            0
+          ),
+          avgProcessingTime:
+            successfulResponses.reduce((sum, r) => sum + r.processingTime, 0) /
+            successfulResponses.length,
+          totalProcessingTime: consensusResult.processingTime,
+        });
+
+        return consensusResult as ConsensusResponse<T>;
+      }
+
+      // Backward compatibility: Execute all models in parallel without structured output
       console.log(
         `[AgentExecutor] Executing ${models.length} models in parallel`,
         { consensusId }
@@ -134,7 +297,7 @@ export class AgentExecutorService {
       // Filter successful responses
       const successfulResponses = responses
         .filter(
-          (result): result is PromiseFulfilledResult<AgentResponse> =>
+          (result): result is PromiseFulfilledResult<AgentResponse<string>> =>
             result.status === 'fulfilled'
         )
         .map((result) => result.value);
@@ -191,13 +354,21 @@ export class AgentExecutorService {
         totalProcessingTime: consensusResult.processingTime,
       });
 
-      return consensusResult;
+      return consensusResult as ConsensusResponse<string>;
     } catch (error) {
       console.error(`[AgentExecutor] Consensus execution failed`, {
         consensusId,
+        structuredOutput: !!schema,
         error: error instanceof Error ? error.message : 'Unknown error',
         processingTime: Date.now() - startTime,
       });
+      
+      if (schema) {
+        throw new Error(
+          `Structured consensus execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+      
       throw new Error(
         `Consensus execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -214,7 +385,7 @@ export class AgentExecutorService {
     config?: AgentConfig
   ): Promise<AgentResponse> {
     const startTime = Date.now();
-    const aggregationId = `aggregation_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const aggregationId = `aggregation_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
     console.log(`[AgentExecutor] Starting consensus with aggregation`, {
       aggregationId,
