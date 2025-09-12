@@ -1,12 +1,42 @@
 /**
- * Twitter/X profile crawler
- * Currently uses mock data, but structured for real scraping implementation
+ * Twitter/X profile crawler using Apify for real data scraping
+ * Falls back to mock data when USE_REAL_CRAWLERS=false
  */
 
+import { ApifyClient } from 'apify-client';
 import { BaseCrawler } from './BaseCrawler';
 import { ProfileData, Post } from './types';
+import { TwitterCrawlerMock } from './mock/TwitterCrawlerMock';
+import { logger } from '../logger';
 
 export class TwitterCrawler extends BaseCrawler {
+  private mockCrawler: TwitterCrawlerMock;
+  private apifyClient: ApifyClient | null = null;
+  private useRealCrawlers: boolean;
+
+  constructor() {
+    super();
+    this.mockCrawler = new TwitterCrawlerMock();
+    this.useRealCrawlers = process.env.USE_REAL_CRAWLERS === 'true';
+
+    logger.info('TwitterCrawler initialized', {
+      useRealCrawlers: this.useRealCrawlers,
+      hasApifyToken: !!process.env.APIFY_API_TOKEN,
+      hasActorId: !!process.env.APIFY_TWITTER_ACTOR_ID,
+    });
+
+    if (this.useRealCrawlers) {
+      const apiToken = process.env.APIFY_API_TOKEN;
+      if (!apiToken) {
+        logger.warn('APIFY_API_TOKEN not found, falling back to mock data');
+        this.useRealCrawlers = false;
+      } else {
+        this.apifyClient = new ApifyClient({ token: apiToken });
+        logger.info('Apify client initialized for Twitter crawler');
+      }
+    }
+  }
+
   protected validateUrl(url: string): boolean {
     const twitterPattern =
       /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/?$/;
@@ -15,123 +45,236 @@ export class TwitterCrawler extends BaseCrawler {
 
   protected async scrapeProfile(url: string): Promise<ProfileData> {
     const username = this.extractUsername(url);
+    const sessionId = `twitter_profile_${username}_${Date.now()}`;
 
-    // Simulate network delay
-    await new Promise((resolve) =>
-      setTimeout(resolve, 800 + Math.random() * 600)
-    );
-
-    // Simulate error scenarios for testing
-    const errorChance = Math.random();
-
-    // Test specific usernames for consistent error scenarios
-    if (username.toLowerCase().includes('private')) {
-      throw new Error('Profile is private or access restricted');
-    }
-    if (
-      username.toLowerCase().includes('notfound') ||
-      username.toLowerCase().includes('deleted')
-    ) {
-      throw new Error('Profile not found or has been deleted');
-    }
-    if (
-      username.toLowerCase().includes('network') ||
-      username.toLowerCase().includes('timeout')
-    ) {
-      throw new Error('Network timeout occurred while fetching profile');
-    }
-
-    // Random error scenarios (reduced for better UX during testing)
-    if (errorChance < 0.02) {
-      // 2% private
-      throw new Error('Profile is private or access restricted');
-    }
-    if (errorChance < 0.03) {
-      // 1% not found
-      throw new Error('Profile not found or has been deleted');
-    }
-    if (errorChance < 0.035) {
-      // 0.5% network error
-      throw new Error('Network error occurred while fetching profile');
-    }
-
-    // Generate mock profile data
-    const displayName = this.generateDisplayName(username);
-
-    return {
-      platform: 'twitter',
+    logger.info('Starting Twitter profile scraping', {
+      sessionId,
+      url,
       username,
-      displayName,
-      profileTitle: `${displayName} (@${username})`,
-      bio: this.generateBio(displayName),
-      isPublic: true,
-      profilePicture: `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=1da1f2&color=fff&size=128&bold=true`,
-      followerCount: Math.floor(Math.random() * 100000) + 1000,
-      verified: Math.random() > 0.8, // 20% chance
-      lastUpdated: new Date().toISOString(),
-    };
+      useRealCrawlers: this.useRealCrawlers,
+    });
+
+    if (!this.useRealCrawlers || !this.apifyClient) {
+      logger.info('Using mock crawler for Twitter profile', { sessionId });
+      return this.mockCrawler.fetchProfile(url);
+    }
+
+    try {
+      const actorId = process.env.APIFY_TWITTER_ACTOR_ID;
+
+      if (!actorId) {
+        logger.error('APIFY_TWITTER_ACTOR_ID not configured', { sessionId });
+        throw new Error('APIFY_TWITTER_ACTOR_ID not configured');
+      }
+
+      logger.info('Starting Apify actor run for Twitter profile', {
+        sessionId,
+        actorId,
+        profileUrl: url,
+      });
+
+      // Run the Apify actor to get profile data
+      const startTime = Date.now();
+      const run = await this.apifyClient.actor(actorId).call({
+        profileUrls: [url],
+        resultsLimit: 1, // Just need profile info
+      });
+
+      logger.info('Apify actor run completed for Twitter profile', {
+        sessionId,
+        runId: run.id,
+        status: run.status,
+        duration: Date.now() - startTime,
+        datasetId: run.defaultDatasetId,
+      });
+
+      // Get results from the dataset
+      const { items } = await this.apifyClient.dataset(run.defaultDatasetId).listItems();
+
+      logger.info('Retrieved Twitter profile data from Apify', {
+        sessionId,
+        itemCount: items?.length || 0,
+        hasItems: !!(items && items.length > 0),
+      });
+
+      if (!items || items.length === 0) {
+        logger.warn('No profile data returned from Apify', { sessionId });
+        throw new Error('Profile not found or access restricted');
+      }
+
+      const profileData = items[0] as any;
+
+      // Extract profile information from the first post's author data
+      const author = profileData.author;
+      if (!author) {
+        logger.warn('No author information in profile data', {
+          sessionId,
+          availableKeys: Object.keys(profileData),
+        });
+        throw new Error('Profile information not available');
+      }
+
+      const result = {
+        platform: 'twitter',
+        username: author.screenName || username,
+        displayName: author.name || username,
+        profileTitle: `${author.name || username} (@${author.screenName || username})`,
+        bio: author.description || '',
+        isPublic: true,
+        profilePicture: author.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || username)}&background=1da1f2&color=fff&size=128&bold=true`,
+        followerCount: author.followersCount || 0,
+        verified: author.verified || false,
+        lastUpdated: new Date().toISOString(),
+      };
+
+      logger.info('Twitter profile scraping completed successfully', {
+        sessionId,
+        username: result.username,
+        displayName: result.displayName,
+        followerCount: result.followerCount,
+        verified: result.verified,
+        bioLength: result.bio.length,
+      });
+
+      return result;
+    } catch (error) {
+      logger.error('Twitter profile scraping failed', {
+        sessionId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      logger.info('Falling back to mock data for Twitter profile', { sessionId });
+      // Fall back to mock data on error
+      return this.mockCrawler.fetchProfile(url);
+    }
   }
 
   protected async scrapePosts(url: string, maxCount: number): Promise<Post[]> {
     const username = this.extractUsername(url);
-    const displayName = this.generateDisplayName(username);
+    const sessionId = `twitter_posts_${username}_${Date.now()}`;
 
-    // Simulate network delay
-    await new Promise((resolve) =>
-      setTimeout(resolve, 1000 + Math.random() * 800)
-    );
+    logger.info('Starting Twitter posts scraping', {
+      sessionId,
+      url,
+      username,
+      maxCount,
+      useRealCrawlers: this.useRealCrawlers,
+    });
 
-    // Simulate error scenarios
-    const errorChance = Math.random();
-    if (errorChance < 0.03) {
-      throw new Error('Profile is private or access restricted');
+    if (!this.useRealCrawlers || !this.apifyClient) {
+      logger.info('Using mock crawler for Twitter posts', { sessionId });
+      return this.mockCrawler.fetchRecentPosts(url, maxCount);
     }
-    if (errorChance < 0.05) {
-      throw new Error('Profile not found or has been deleted');
-    }
 
-    // Generate mock posts
-    const posts: Post[] = [];
-    const actualCount = Math.min(maxCount, Math.floor(Math.random() * 15) + 5); // 5-20 posts
+    try {
+      const actorId = process.env.APIFY_TWITTER_ACTOR_ID;
 
-    for (let i = 0; i < actualCount; i++) {
-      const postId = `${username}_${Date.now()}_${i}`;
-      const createdAt = new Date(
-        Date.now() - i * 3600000 - Math.random() * 3600000
-      ).toISOString(); // Random times in past hours
+      if (!actorId) {
+        logger.error('APIFY_TWITTER_ACTOR_ID not configured', { sessionId });
+        throw new Error('APIFY_TWITTER_ACTOR_ID not configured');
+      }
 
-      // 20% chance of retweet
-      const isRetweet = Math.random() < 0.2;
+      const resultsLimit = Math.min(maxCount, 100); // Apify actor limit
 
-      posts.push({
-        id: postId,
-        content: this.generatePostContent(i, isRetweet),
-        createdAt,
-        author: {
-          username,
-          displayName,
-        },
-        metrics: {
-          likes: Math.floor(Math.random() * 1000) + 10,
-          shares: Math.floor(Math.random() * 200) + 1,
-          comments: Math.floor(Math.random() * 100) + 1,
-          views: Math.floor(Math.random() * 10000) + 100,
-        },
-        url: `https://x.com/${username}/status/${postId}`,
-        isRetweet,
-        originalPost: isRetweet
-          ? {
-              id: `original_${postId}`,
-              author: {
-                username: this.generateRandomUsername(),
-                displayName: this.generateRandomDisplayName(),
-              },
-            }
-          : undefined,
+      logger.info('Starting Apify actor run for Twitter posts', {
+        sessionId,
+        actorId,
+        profileUrl: url,
+        resultsLimit,
       });
-    }
 
-    return posts;
+      // Run the Apify actor to get posts
+      const startTime = Date.now();
+      const run = await this.apifyClient.actor(actorId).call({
+        profileUrls: [url],
+        resultsLimit,
+      });
+
+      logger.info('Apify actor run completed for Twitter posts', {
+        sessionId,
+        runId: run.id,
+        status: run.status,
+        duration: Date.now() - startTime,
+        datasetId: run.defaultDatasetId,
+      });
+
+      // Get results from the dataset
+      const { items } = await this.apifyClient.dataset(run.defaultDatasetId).listItems();
+
+      logger.info('Retrieved Twitter posts data from Apify', {
+        sessionId,
+        itemCount: items?.length || 0,
+        hasItems: !!(items && items.length > 0),
+      });
+
+      if (!items || items.length === 0) {
+        logger.warn('No posts data returned from Apify', { sessionId });
+        throw new Error('No posts found or profile is private');
+      }
+
+      // Convert Apify results to our Post format
+      const posts: Post[] = items.map((item: any, index: number) => {
+        const post = {
+          id: item.postId || item.conversationId || `post_${Date.now()}_${Math.random()}`,
+          content: item.postText || item.text || '',
+          createdAt: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+          author: {
+            username: item.author?.screenName || username,
+            displayName: item.author?.name || item.author?.screenName || 'Unknown User',
+          },
+          metrics: {
+            likes: item.favouriteCount || item.likeCount || 0,
+            shares: item.repostCount || item.retweetCount || 0,
+            comments: item.replyCount || 0,
+            views: item.viewCount || 0,
+          },
+          url: item.postUrl || `https://x.com/${item.author?.screenName}/status/${item.postId}`,
+          isRetweet: item.isRetweet || false,
+          originalPost: item.isRetweet ? {
+            id: item.originalPostId || 'unknown',
+            author: {
+              username: item.originalAuthor?.screenName || 'unknown',
+              displayName: item.originalAuthor?.name || 'Unknown User',
+            },
+          } : undefined,
+        };
+
+        logger.debug('Processed Twitter post', {
+          sessionId,
+          postIndex: index,
+          postId: post.id,
+          contentLength: post.content.length,
+          isRetweet: post.isRetweet,
+          hasMetrics: !!(post.metrics.likes || post.metrics.shares || post.metrics.comments),
+        });
+
+        return post;
+      });
+
+      const finalPosts = posts.slice(0, maxCount);
+
+      logger.info('Twitter posts scraping completed successfully', {
+        sessionId,
+        totalPostsRetrieved: posts.length,
+        finalPostCount: finalPosts.length,
+        maxCount,
+        averageContentLength: finalPosts.reduce((sum, p) => sum + p.content.length, 0) / finalPosts.length,
+        retweetCount: finalPosts.filter(p => p.isRetweet).length,
+      });
+
+      return finalPosts;
+    } catch (error) {
+      logger.error('Twitter posts scraping failed', {
+        sessionId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      logger.info('Falling back to mock data for Twitter posts', { sessionId });
+      // Fall back to mock data on error
+      return this.mockCrawler.fetchRecentPosts(url, maxCount);
+    }
   }
 
   private extractUsername(url: string): string {
@@ -142,118 +285,4 @@ export class TwitterCrawler extends BaseCrawler {
       throw new Error('Invalid URL format');
     }
   }
-
-  private generateDisplayName(username: string): string {
-    const names = [
-      'Alex Johnson',
-      'Sarah Chen',
-      'Michael Rodriguez',
-      'Emily Davis',
-      'David Kim',
-      'Jessica Wilson',
-      'Ryan Thompson',
-      'Amanda Garcia',
-      'Chris Lee',
-      'Nicole Brown',
-      'Marcus Williams',
-      'Lisa Zhang',
-      'James Martinez',
-      'Rachel Green',
-      'Kevin Park',
-    ];
-
-    const index =
-      username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) %
-      names.length;
-    return names[index];
-  }
-
-  private generateBio(displayName: string): string {
-    const bios = [
-      'Building the future of technology, one line of code at a time. Thoughts on AI, startups, and life.',
-      'Passionate about sustainable tech and climate solutions. Sharing insights from the intersection of business and environment.',
-      "Software engineer by day, indie hacker by night. Building tools that make developers' lives easier.",
-      'Exploring the frontiers of machine learning and data science. Always learning, always sharing.',
-      'Product enthusiast helping teams build better user experiences. Coffee addict ☕',
-      'Entrepreneur, investor, and mentor. Helping startups scale from idea to IPO.',
-      'Designer focused on creating inclusive and accessible digital experiences.',
-      'Marketing strategist helping B2B companies grow through content and community.',
-      'Open source contributor and advocate for developer tools and productivity.',
-      'Research scientist working on the next generation of AI systems.',
-    ];
-
-    const index =
-      displayName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) %
-      bios.length;
-    return bios[index];
-  }
-
-  private generatePostContent(index: number, isRetweet: boolean): string {
-    if (isRetweet) {
-      const retweetContents = [
-        'This is exactly what I was thinking about earlier today. Great insights!',
-        "Couldn't agree more with this perspective. Worth reading.",
-        'This thread is gold. Everyone should read this.',
-        'Sharing this because it perfectly captures my thoughts on the matter.',
-        'Important points raised here. Thanks for sharing!',
-      ];
-      return retweetContents[index % retweetContents.length];
-    }
-
-    const contents = [
-      "Just shipped a new feature that I'm really excited about. The team did an amazing job bringing this vision to life! 🚀",
-      "Interesting discussion at today's conference about the future of AI and its impact on software development. Lots to think about.",
-      "Working on some exciting projects lately. Can't share details yet, but stay tuned for some big announcements! 👀",
-      "Coffee shop coding session today. There's something about the ambient noise that helps me focus. ☕️ #coding",
-      'Just finished reading an excellent book on system design. Highly recommend it to anyone building scalable applications.',
-      'Debugging is like being a detective in a crime movie where you are also the murderer. 🕵️‍♂️ #programming',
-      'The best part about working in tech is the constant learning. Every day brings new challenges and opportunities to grow.',
-      "Shoutout to my team for crushing it this quarter. Couldn't ask for better colleagues to work with! 🙌",
-      "Sometimes the simplest solution is the best solution. Don't overcomplicate things. #KISS",
-      "Late night coding session. When you're in the flow, time just disappears. Anyone else experience this? 🌙",
-    ];
-
-    return contents[index % contents.length];
-  }
-
-  private generateRandomUsername(): string {
-    const usernames = [
-      'techguru',
-      'codemaster',
-      'devlife',
-      'buildthings',
-      'innovator',
-      'creator',
-      'maker',
-      'hacker',
-    ];
-    return (
-      usernames[Math.floor(Math.random() * usernames.length)] +
-      Math.floor(Math.random() * 1000)
-    );
-  }
-
-  private generateRandomDisplayName(): string {
-    const names = [
-      'Sam Wilson',
-      'Jordan Lee',
-      'Taylor Swift',
-      'Morgan Davis',
-      'Casey Johnson',
-    ];
-    return names[Math.floor(Math.random() * names.length)];
-  }
-
-  // Future: Real scraping implementation would go here
-  // private async scrapeProfile(url: string): Promise<ProfileData> {
-  //   // Use puppeteer, playwright, or HTTP requests to scrape actual profile data
-  //   // Parse HTML/JSON responses
-  //   // Handle authentication, cookies, etc.
-  // }
-
-  // private async scrapePosts(url: string, maxCount: number): Promise<Post[]> {
-  //   // Use puppeteer, playwright, or HTTP requests to scrape recent posts
-  //   // Parse tweet data, handle pagination
-  //   // Extract metrics, content, timestamps, etc.
-  // }
 }

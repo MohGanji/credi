@@ -126,11 +126,13 @@
   - **User Test**: Configure different execution strategies via environment variables, submit analysis, verify execution type in results
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 13. Create real social media data crawlers (USER TESTABLE)
+- [x] 13. Create real social media data crawlers (USER TESTABLE)
   - Move mock social media crawlers to new files so we can use them for testing.
   - Replace mock data with real Twitter/LinkedIn API integration
   - Enable switching between mock and real data crawling via env variables
   - Add proper error handling for API failures
+  - Use apify as descriped in the design document for scraping linkedin and twitter posts
+  - Must have environment variables for apify token, posts to fetch count, apify linkedin actor and twitter actor IDs.
   - Show real posts and profile data in analysis results
   - **User Test**: Submit URL and see analysis based on real social media posts
   - _Requirements: 2.1, 2.2, 2.4_

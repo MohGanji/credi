@@ -13,6 +13,8 @@ export interface CreateAnalysisData {
   processingTimeMs?: number;
   modelUsed?: string;
   tokensUsed?: number;
+  analysisPrompt?: string; // The full prompt used for credibility analysis
+  scoringPrompt?: string; // The full prompt used for scoring
 }
 
 export interface UpdateAnalysisData {
@@ -23,6 +25,8 @@ export interface UpdateAnalysisData {
   tokensUsed?: number;
   expiresAt?: Date;
   requestedBy?: string;
+  analysisPrompt?: string;
+  scoringPrompt?: string;
 }
 
 export class AnalysisRepository {
@@ -42,6 +46,8 @@ export class AnalysisRepository {
         processingTimeMs: data.processingTimeMs,
         modelUsed: data.modelUsed,
         tokensUsed: data.tokensUsed,
+        analysisPrompt: data.analysisPrompt,
+        scoringPrompt: data.scoringPrompt,
       },
     });
   }
@@ -103,6 +109,8 @@ export class AnalysisRepository {
         tokensUsed: data.tokensUsed,
         expiresAt: data.expiresAt,
         requestedBy: data.requestedBy,
+        analysisPrompt: data.analysisPrompt,
+        scoringPrompt: data.scoringPrompt,
       },
     });
   }

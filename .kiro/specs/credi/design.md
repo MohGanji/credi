@@ -276,6 +276,67 @@ class TwitterCrawler implements SocialMediaCrawler {
 
   async crawlPosts(profileUrl: string, limit: number): Promise<Post[]> {
     // Twitter-specific post extraction
+
+    import { ApifyClient } from 'apify-client';
+
+    // Initialize the ApifyClient with API token
+    const client = new ApifyClient({
+        token: '<YOUR_API_TOKEN>',
+    });
+
+    // Prepare Actor input
+    const input = {
+        "profileUrls": [
+            "https://x.com/ishowspeedsui",
+            "https://x.com/AshtonHallofc"
+        ],
+        "resultsLimit": 30
+    };
+
+    (async () => {
+        // Run the Actor and wait for it to finish
+        const run = await client.actor("Fo9GoU5wC270BgcBr").call(input);
+
+        // Fetch and print Actor results from the run's dataset (if any)
+        console.log('Results from dataset');
+        const { items } = await client.dataset(run.defaultDatasetId).listItems();
+        items.forEach((item) => {
+            console.dir(item);
+        });
+    })();
+    /*
+
+    Example input: 
+    {
+        "profileUrls": [
+            "https://x.com/elonmusk"
+        ],
+        "resultsLimit": 20
+    }
+
+    Example output:
+    {
+        "postText": "🦾🔥",
+        "postUrl": "https://x.com/elonmusk/status/1938336472253534273",
+        "profileUrl": "https://x.com/elonmusk",
+        "timestamp": 1750970402000,
+        "conversationId": "1938336472253534273",
+        "postId": "1938336472253534273",
+        "media": [],
+        "author": {
+            "name": "Elon Musk",
+            "screenName": "elonmusk",
+            "followersCount": 221266053,
+            "favouritesCount": 153129,
+            "friendsCount": 1146,
+            "description": ""
+        },
+        "replyCount": 1558,
+        "quoteCount": 50,
+        "repostCount": 954,
+        "favouriteCount": 9609
+    }
+    */
   }
 
   async isProfilePublic(url: string): Promise<boolean> {
@@ -295,7 +356,79 @@ class LinkedInCrawler implements SocialMediaCrawler {
   }
 
   async crawlPosts(profileUrl: string, limit: number): Promise<Post[]> {
-    // LinkedIn-specific post extraction
+
+      import { ApifyClient } from 'apify-client';
+      // Use the Apify client below for Crawling linkedin posts
+      // Initialize the ApifyClient with API token
+      const client = new ApifyClient({
+          token: '<YOUR_API_TOKEN>',
+      });
+
+      // Prepare Actor input
+      const input = {
+          "username": "satyanadella",
+          "page_number": 1,
+          "limit": 100
+      };
+
+      (async () => {
+          // Run the Actor and wait for it to finish
+          const run = await client.actor("LQQIXN9Othf8f7R5n").call(input);
+
+          // Fetch and print Actor results from the run's dataset (if any)
+          console.log('Results from dataset');
+          const { items } = await client.dataset(run.defaultDatasetId).listItems();
+          items.forEach((item) => {
+              console.dir(item);
+          });
+      })();
+
+        /*
+        {
+  "success": true,
+  "message": "response retrieved successfully",
+  "data": {
+    "posts": [
+      {
+        "urn": "7123456789012345678",
+        "full_urn": "urn:li:ugcPost:7123456789012345678",
+        "posted_at": {
+          "date": "2025-05-15 14:30:20",
+          "relative": "2 days ago • Visible to anyone on or off LinkedIn",
+          "timestamp": 1745678901234
+        },
+        "text": "Sample post text content. This is where the LinkedIn post text appears.",
+        "url": "https://www.linkedin.com/posts/username_sample-activity-7123456789012345678-AbCd",
+        "post_type": "regular",
+        "author": {
+          "first_name": "John",
+          "last_name": "Doe",
+          "headline": "CEO at Example Company",
+          "username": "johndoe",
+          "profile_url": "https://www.linkedin.com/in/johndoe",
+          "profile_picture": "https://media.licdn.com/dms/image/profile-pic.jpg"
+        },
+        "stats": {
+          "total_reactions": 123,
+          "like": 100,
+          "support": 5,
+          "love": 10,
+          "insight": 3,
+          "celebrate": 5,
+          "comments": 15,
+          "reposts": 7
+        },
+        "media": {
+          "type": "image",
+          "url": "https://media.licdn.com/dms/image/sample-image.jpg",
+          "thumbnail": "https://media.licdn.com/dms/image/sample-thumbnail.jpg"
+        }
+      }
+    ],
+    "pagination_token": "dXJuOmxpOmFjdGl2aXR5Ojc1MjM0NTU1NTU1NTU1NTU1NTUtMTc0NDc3ODkwMTIzNA=="
+  }
+}
+        */
   }
 
   async isProfilePublic(url: string): Promise<boolean> {

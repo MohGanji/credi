@@ -3,6 +3,7 @@ import { AnalysisRepository } from '../../lib/repositories/analysis';
 import { validateSocialMediaUrl, getPlatformInfo } from '../../lib/validation';
 import { generateMockAnalysisResult } from '../../lib/mock-data';
 import { CredibilityAnalyzer } from '../../lib/services/CredibilityAnalyzer';
+import { CrawlerFactory } from '../../lib/crawlers/CrawlerFactory';
 import { logger } from '../../lib/logger';
 
 export async function POST(request: NextRequest) {
@@ -70,36 +71,78 @@ export async function POST(request: NextRequest) {
         // Use credibility analysis service for real analysis
         const credibilityAnalyzer = new CredibilityAnalyzer();
 
-        // Mock posts data for now - in a real implementation, this would come from social media crawlers
-        const mockPosts = [
-          {
-            id: '1',
-            content:
-              'Sample post content for analysis. This post demonstrates thoughtful analysis with references to credible sources.',
-            timestamp: new Date('2024-01-15'),
-            links: ['https://example.com/study'],
-          },
-          {
-            id: '2',
-            content:
-              'Another sample post discussing market trends with balanced perspective and acknowledging uncertainty.',
-            timestamp: new Date('2024-01-14'),
-            links: [],
-          },
-        ];
+        let posts, profileInfo;
 
-        const mockProfileInfo = {
-          username: platformInfo.username,
-          displayName: platformInfo.username,
-          bio: 'Sample bio for analysis - professional with expertise indicators',
-          verified: false,
-        };
+        try {
+          // Fetch real profile and posts data using crawlers
+          logger.info(`Fetching profile data for ${normalizedUrl}`);
+          const profileData = await CrawlerFactory.fetchProfile(normalizedUrl);
+          
+          const postsToFetch = parseInt(process.env.POSTS_TO_FETCH || '10', 10);
+          logger.info(`Fetching ${postsToFetch} recent posts for ${normalizedUrl}`);
+          const postsData = await CrawlerFactory.fetchRecentPosts(normalizedUrl, postsToFetch);
 
-        logger.info(`Starting AI analysis for ${normalizedUrl}`);
+          // Convert crawler data to format expected by CredibilityAnalyzer
+          posts = postsData.map(post => ({
+            id: post.id,
+            content: post.content,
+            timestamp: post.createdAt,
+            links: post.links || [],
+          }));
+
+          profileInfo = {
+            username: profileData.username,
+            displayName: profileData.displayName,
+            bio: profileData.bio,
+            verified: profileData.verified,
+          };
+
+          logger.info(`Successfully fetched real data for ${normalizedUrl}`, {
+            profileUsername: profileInfo.username,
+            postCount: posts.length,
+            verified: profileInfo.verified,
+            displayName: profileInfo.displayName,
+          });
+
+        } catch (crawlerError) {
+          logger.warn('Crawler failed, falling back to mock data for analysis', {
+            error: crawlerError instanceof Error ? crawlerError.message : 'Unknown crawler error',
+            url: normalizedUrl,
+          });
+
+          // Fallback to mock data if crawlers fail
+          posts = [
+            {
+              id: '1',
+              content: 'Sample post content for analysis. This post demonstrates thoughtful analysis with references to credible sources.',
+              timestamp: new Date('2024-01-15'),
+              links: ['https://example.com/study'],
+            },
+            {
+              id: '2',
+              content: 'Another sample post discussing market trends with balanced perspective and acknowledging uncertainty.',
+              timestamp: new Date('2024-01-14'),
+              links: [],
+            },
+          ];
+
+          profileInfo = {
+            username: platformInfo.username,
+            displayName: platformInfo.username,
+            bio: 'Sample bio for analysis - professional with expertise indicators',
+            verified: false,
+          };
+        }
+
+        logger.info(`Starting AI analysis for ${normalizedUrl}`, {
+          profileUsername: profileInfo.username,
+          postCount: posts.length,
+          verified: profileInfo.verified,
+        });
 
         analysisResult = await credibilityAnalyzer.analyzeProfile(
-          mockPosts,
-          mockProfileInfo,
+          posts,
+          profileInfo,
           { timeout: 120000 }
         );
 

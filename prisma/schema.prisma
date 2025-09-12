@@ -32,5 +32,9 @@ model Analysis {
   modelUsed       String?
   tokensUsed      Int?
   
+  // Prompt storage for audit trail
+  analysisPrompt String? // The full prompt used for credibility analysis
+  scoringPrompt  String? // The full prompt used for scoring
+  
   @@map("analyses")
 }

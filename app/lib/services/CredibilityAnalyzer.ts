@@ -38,17 +38,24 @@ export class CredibilityAnalyzer {
       },
     });
 
-    const prompt = this.buildCredibilityPrompt(posts, profileInfo);
-    logger.debug('Built analysis prompt', {
+    const analysisPrompt = this.buildCredibilityPrompt(posts, profileInfo);
+    logger.info('Built analysis prompt', {
       sessionId,
-      promptLength: prompt.length,
-      promptPreview: prompt.substring(0, 200) + '...',
+      promptLength: analysisPrompt.length,
+      promptPreview: analysisPrompt.substring(0, 200) + '...',
+      postCount: posts.length,
+      profileUsername: profileInfo.username,
     });
 
     // Use mock data if configured
     if (process.env.MOCK_AGENT_CALL === 'true') {
       logger.info('Using mock data for analysis', { sessionId });
-      return this.getMockAnalysisResult(profileInfo);
+      const mockResult = this.getMockAnalysisResult(profileInfo);
+      // Add prompt to mock result for consistency
+      return {
+        ...mockResult,
+        analysisPrompt,
+      };
     }
 
     // Get execution strategy from environment
@@ -87,7 +94,7 @@ export class CredibilityAnalyzer {
         await this.agentExecutor.executeConsensusWithAggregation(
           consensusModels,
           aggregatorModel,
-          prompt,
+          analysisPrompt,
           {
             temperature: 0.2,
             maxTokens: 4000,
@@ -115,7 +122,7 @@ export class CredibilityAnalyzer {
       // Use single model execution
       const singleResult = await this.agentExecutor.executeAgent(
         models[0],
-        prompt,
+        analysisPrompt,
         {
           temperature: 0.2,
           maxTokens: 4000,
@@ -158,6 +165,9 @@ export class CredibilityAnalyzer {
       tokensUsed: totalTokens,
     });
 
+    // Add the analysis prompt to the result
+    finalResult.analysisPrompt = analysisPrompt;
+
     logger.info('Analysis completed successfully', {
       sessionId,
       finalScore: finalResult.crediScore,
@@ -165,6 +175,7 @@ export class CredibilityAnalyzer {
       totalProcessingTime: Date.now() - startTime,
       totalTokensUsed: totalTokens,
       modelsUsed: modelUsed,
+      analysisPromptLength: analysisPrompt.length,
     });
 
     return finalResult;
@@ -178,23 +189,59 @@ export class CredibilityAnalyzer {
     options?: {
       models?: ModelConfig[];
     }
-  ): Promise<{ score: number; reasoning: string }> {
-    const prompt = this.buildScoringPrompt(analysisData);
+  ): Promise<{ score: number; reasoning: string; scoringPrompt: string }> {
+    const sessionId = `scoring_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    const scoringPrompt = this.buildScoringPrompt(analysisData);
+
+    logger.info('Starting profile scoring', {
+      sessionId,
+      scoringPromptLength: scoringPrompt.length,
+      scoringPromptPreview: scoringPrompt.substring(0, 200) + '...',
+    });
 
     // Use mock data if configured
     if (process.env.MOCK_AGENT_CALL === 'true') {
-      return { score: 7.5, reasoning: 'Mock scoring result for testing' };
+      logger.info('Using mock data for scoring', { sessionId });
+      return { 
+        score: 7.5, 
+        reasoning: 'Mock scoring result for testing',
+        scoringPrompt,
+      };
     }
 
     // For scoring, always use single model execution for consistency
     const models = options?.models || this.getSingleModel();
 
-    const result = await this.agentExecutor.executeAgent(models[0], prompt, {
+    logger.info('Executing scoring with model', {
+      sessionId,
+      model: models[0].name,
+    });
+
+    const result = await this.agentExecutor.executeAgent(models[0], scoringPrompt, {
       temperature: 0.1,
       maxTokens: 1000,
     });
 
-    return this.parseScoringResult(result.content || '');
+    logger.info('Scoring completed', {
+      sessionId,
+      model: result.model,
+      tokensUsed: result.tokensUsed,
+      processingTime: result.processingTime,
+      contentLength: result.content?.length || 0,
+    });
+
+    const scoringResult = this.parseScoringResult(result.content || '');
+    
+    logger.info('Scoring result parsed', {
+      sessionId,
+      score: scoringResult.score,
+      reasoningLength: scoringResult.reasoning.length,
+    });
+
+    return {
+      ...scoringResult,
+      scoringPrompt,
+    };
   }
 
   private getConfiguredModels(executionType: string): ModelConfig[] {
@@ -541,6 +588,8 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
         modelUsed: metadata.modelUsed,
         tokensUsed: metadata.tokensUsed,
         requestedBy: null,
+        analysisPrompt: undefined, // Will be set by caller
+        scoringPrompt: undefined, // Will be set by caller if used
       };
 
       logger.info('Analysis result parsed successfully', {
@@ -583,6 +632,8 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
         modelUsed: metadata.modelUsed,
         tokensUsed: metadata.tokensUsed,
         requestedBy: null,
+        analysisPrompt: undefined, // Will be set by caller
+        scoringPrompt: undefined, // Will be set by caller if used
       };
 
       logger.warn('Using fallback analysis result', {
@@ -645,6 +696,8 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
       modelUsed: 'mock-model',
       tokensUsed: 2500,
       requestedBy: null,
+      analysisPrompt: undefined, // Will be set by caller
+      scoringPrompt: undefined, // Will be set by caller if used
     };
   }
 
