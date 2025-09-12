@@ -2,55 +2,25 @@
 
 ## Overview
 
-This design implements robust LLM output validation by extending the existing AgentExecutorService with optional schema validation capabilities. The solution leverages existing libraries where possible and provides seamless integration through optional parameters, ensuring backward compatibility while adding powerful type safety and retry mechanisms.
+This design implements simple LLM output validation by extending the existing AgentExecutorService with optional Zod schema validation. The solution uses a straightforward approach with enhanced prompting and basic retry logic, ensuring backward compatibility while adding type safety.
 
-## Research Findings
+## Approach
 
-### Existing Libraries Analysis
+We'll implement a simple, uniform approach for all LLM providers:
 
-**LangChain Output Parsers:**
-
-- `@langchain/core/output_parsers` provides structured output parsing
-- `PydanticOutputParser` and `StructuredOutputParser` available but require Python-style schemas
-- `JsonOutputParser` provides basic JSON validation
-- Limited TypeScript/Zod integration
-
-**Instructor Library:**
-
-- Popular Python library for structured LLM outputs
-- No official TypeScript/JavaScript version
-- Concept: Use function calling or structured prompts with validation
-
-**Zod Integration Options:**
-
-- `zod-to-json-schema` converts Zod schemas to JSON Schema for prompt generation
-- `@langchain/core` has some Zod integration but limited
-- Custom integration needed for full TypeScript support
-
-**LangChain Function Calling:**
-
-- OpenAI and Anthropic support function calling with JSON schemas
-- Can enforce structured outputs at the model level
-- Better reliability than prompt-based approaches
-
-### Recommended Approach
-
-Based on research, we'll implement a hybrid approach:
-
-1. **Primary**: Use LangChain's function calling when available (OpenAI, Anthropic)
-2. **Fallback**: Enhanced prompting with Zod validation for other providers
-3. **Integration**: Custom wrapper that provides unified interface
+1. **Enhanced Prompting**: Add JSON schema information to prompts when schema provided
+2. **Zod Validation**: Parse and validate responses using provided Zod schema
+3. **Simple Retry**: Retry up to 2 times with enhanced prompts on validation failure
+4. **Clear Errors**: Throw ValidationError with original response when all retries fail
 
 ## Architecture
-
-### Simple Approach
 
 Add optional Zod schema parameter to existing AgentExecutorService methods. When provided:
 
 1. Enhance prompt with JSON schema information
 2. Parse and validate LLM response
-3. Retry with better prompts if validation fails
-4. Return typed result or throw clear error
+3. Retry up to 2 times with enhanced prompts if validation fails
+4. Return typed result or throw ValidationError
 
 ### Enhanced Interfaces
 
@@ -63,12 +33,11 @@ async executeAgent<T>(
   schema?: z.ZodSchema<T>
 ): Promise<AgentResponse & { parsedContent?: T }>
 
-// Simple validation config
+// No changes needed to AgentConfig - use fixed retry count
 interface AgentConfig {
   temperature?: number
   maxTokens?: number
   timeout?: number
-  maxRetries?: number  // New: for validation retries (default: 2)
 }
 ```
 
@@ -81,14 +50,14 @@ interface AgentConfig {
 1. If schema provided, enhance prompt with JSON schema
 2. Call LLM as usual
 3. Try to parse response with Zod
-4. If parsing fails, retry with enhanced error-specific prompt
-5. After max retries, throw validation error
+4. If parsing fails, retry up to 2 times with enhanced prompt
+5. After 2 failed retries, throw ValidationError
 
 **Internal Helper Methods**:
 
 - `enhancePromptWithSchema(prompt, schema)`: Add JSON schema to prompt
 - `parseAndValidate<T>(response, schema)`: Parse JSON and validate with Zod
-- `createRetryPrompt(originalPrompt, schema, error)`: Create better prompt for retry
+- `createRetryPrompt(originalPrompt, schema)`: Create simple retry prompt with schema
 
 ## Data Models
 
@@ -121,8 +90,8 @@ const result = await agentExecutor.executeAgent(
 
 ### Simple Error Strategy
 
-1. **First Failure**: Retry with validation errors added to prompt
-2. **Final Failure**: Throw clear error with original response and validation details
+1. **Retry Failures**: Retry with simple enhanced prompt: "Please return valid JSON matching this schema"
+2. **Final Failure**: Throw ValidationError with original response and validation details
 
 ```typescript
 class ValidationError extends Error {
@@ -140,37 +109,23 @@ class ValidationError extends Error {
 
 ### Unit Tests
 
-1. **Schema Adapter Tests**:
+1. **Schema Conversion Tests**:
    - Zod to JSON Schema conversion
-   - Function call schema generation
    - Validation accuracy
 
 2. **Validation Service Tests**:
    - Retry logic with mocked failures
-   - Prompt enhancement effectiveness
    - Error handling scenarios
-
-3. **Integration Tests**:
-   - End-to-end validation with real models
-   - Performance impact measurement
-   - Backward compatibility verification
+   - Backward compatibility
 
 ### Test Data
 
 ```typescript
-// Test schemas of varying complexity
+// Simple test schemas
 const SimpleSchema = z.object({ message: z.string() });
-const ComplexSchema = z.object({
-  analysis: z.object({
-    score: z.number(),
-    details: z.array(
-      z.object({
-        criterion: z.string(),
-        evaluation: z.enum(['pass', 'fail']),
-        reasoning: z.string(),
-      })
-    ),
-  }),
+const AnalysisSchema = z.object({
+  score: z.number(),
+  summary: z.string(),
 });
 ```
 
@@ -180,8 +135,8 @@ const ComplexSchema = z.object({
 
 1. Add Zod dependency to package.json
 2. Add optional schema parameter to AgentExecutorService methods
-3. Implement prompt enhancement with JSON schema
-4. Add validation and retry logic
+3. Implement simple prompt enhancement with JSON schema
+4. Add basic validation and retry logic
 5. Update CredibilityAnalyzer to use validated responses
 
 ## Integration Points
@@ -195,11 +150,13 @@ const analysisContent = result.responses[0]?.content || '';
 // Manual parsing with fallback to raw output
 
 // After (with validation)
-const result = await this.agentExecutor.agentConsensus(models, prompt, config, {
-  zodSchema: AnalysisResultSchema,
-  description: 'Credibility analysis result',
-});
-const analysisContent = result.validatedResponses?.[0]; // Type-safe, validated result
+const result = await this.agentExecutor.agentConsensus(
+  models, 
+  prompt, 
+  config, 
+  AnalysisResultSchema
+);
+const analysisContent = result.parsedContent; // Type-safe, validated result
 ```
 
 ### Backward Compatibility
@@ -207,10 +164,9 @@ const analysisContent = result.validatedResponses?.[0]; // Type-safe, validated 
 - All existing method calls continue to work unchanged
 - Schema parameter is optional
 - When no schema provided, behavior identical to current implementation
-- Gradual migration path for existing code
 
 ## Performance Considerations
 
-- Minimal overhead when schema not provided (backward compatibility)
-- Simple JSON schema generation from Zod (no caching needed initially)
-- Retry logic adds latency but improves reliability
+- Minimal overhead when schema not provided
+- Simple JSON schema generation from Zod
+- Fixed retry count (2) keeps latency predictable
