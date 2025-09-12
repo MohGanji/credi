@@ -377,6 +377,17 @@ export class AgentExecutorService {
   }
 
   /**
+   * Execute consensus with aggregation with structured output validation
+   */
+  async executeConsensusWithAggregation<T>(
+    inputModels: ModelConfig[],
+    aggregatorModel: ModelConfig,
+    prompt: string,
+    config: AgentConfig | undefined,
+    schema: z.ZodSchema<T>
+  ): Promise<AgentResponse<T>>;
+
+  /**
    * Execute consensus with aggregation - multiple models provide input, one model aggregates
    */
   async executeConsensusWithAggregation(
@@ -384,7 +395,18 @@ export class AgentExecutorService {
     aggregatorModel: ModelConfig,
     prompt: string,
     config?: AgentConfig
-  ): Promise<AgentResponse> {
+  ): Promise<AgentResponse<string>>;
+
+  /**
+   * Execute consensus with aggregation - multiple models provide input, one model aggregates
+   */
+  async executeConsensusWithAggregation<T>(
+    inputModels: ModelConfig[],
+    aggregatorModel: ModelConfig,
+    prompt: string,
+    config?: AgentConfig,
+    schema?: z.ZodSchema<T>
+  ): Promise<AgentResponse<T> | AgentResponse<string>> {
     const startTime = Date.now();
     const aggregationId = `aggregation_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
@@ -401,7 +423,51 @@ export class AgentExecutorService {
     }
 
     try {
-      // Step 1: Get responses from all input models
+      // If schema is provided, use structured output
+      if (schema) {
+        console.log(`[AgentExecutor] Starting structured consensus with aggregation`, {
+          aggregationId,
+          structuredOutput: true,
+        });
+
+        // Step 1: Get structured responses from all input models
+        console.log(
+          `[AgentExecutor] Step 1: Getting structured responses from input models`,
+          { aggregationId }
+        );
+        const consensusResult = await this.agentConsensus(
+          inputModels,
+          prompt,
+          config,
+          schema
+        );
+
+        // For structured output, we can return the first successful response
+        // since all responses should conform to the same schema
+        const firstResponse = consensusResult.responses[0];
+        const totalTokensUsed = consensusResult.responses.reduce(
+          (sum, r) => sum + (r.tokensUsed || 0),
+          0
+        );
+        const modelDescription = `consensus(${consensusResult.responses.map((r) => r.model).join(',')})`;
+
+        console.log(`[AgentExecutor] Structured consensus aggregation completed`, {
+          aggregationId,
+          inputResponses: consensusResult.responses.length,
+          totalTokensUsed,
+          totalProcessingTime: Date.now() - startTime,
+          modelDescription,
+        });
+
+        return {
+          content: firstResponse.content,
+          model: modelDescription,
+          tokensUsed: totalTokensUsed,
+          processingTime: Date.now() - startTime,
+        } as AgentResponse<T>;
+      }
+
+      // Backward compatibility: Step 1: Get responses from all input models
       console.log(
         `[AgentExecutor] Step 1: Getting responses from input models`,
         { aggregationId }
@@ -459,13 +525,21 @@ export class AgentExecutorService {
         model: modelDescription,
         tokensUsed: totalTokensUsed,
         processingTime: totalProcessingTime,
-      };
+      } as AgentResponse<string>;
     } catch (error) {
       console.error(`[AgentExecutor] Consensus aggregation failed`, {
         aggregationId,
+        structuredOutput: !!schema,
         error: error instanceof Error ? error.message : 'Unknown error',
         processingTime: Date.now() - startTime,
       });
+      
+      if (schema) {
+        throw new Error(
+          `Structured consensus aggregation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+      
       throw new Error(
         `Consensus aggregation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );

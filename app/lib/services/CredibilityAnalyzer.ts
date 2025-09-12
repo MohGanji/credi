@@ -5,6 +5,11 @@ import {
   ModelConfig,
 } from './AgentExecutorService';
 import { logger } from '../logger';
+import { 
+  CredibilityAnalysisResultSchema, 
+  CredibilityAnalysisResult,
+  ScoringResultSchema 
+} from '../schemas/credibility-analysis';
 
 /**
  * Project-specific service for credibility analysis using the AI agent executor
@@ -78,20 +83,23 @@ export class CredibilityAnalyzer {
     let result: any;
     let modelUsed: string;
 
-    if (executionType === 'consensus') {
-      // Use consensus with aggregation
-      const consensusModels = this.getConsensusModels();
-      const aggregatorModel = this.getConsensusAggregatorModel();
+    let analysisResult: CredibilityAnalysisResult;
+    let totalTokens: number;
 
-      logger.info('Executing consensus analysis with aggregation', {
-        sessionId,
-        inputModelCount: consensusModels.length,
-        inputModels: consensusModels.map((m) => m.name),
-        aggregatorModel: aggregatorModel.name,
-      });
+    try {
+      if (executionType === 'consensus') {
+        // Use consensus with aggregation and structured output
+        const consensusModels = this.getConsensusModels();
+        const aggregatorModel = this.getConsensusAggregatorModel();
 
-      const consensusResult =
-        await this.agentExecutor.executeConsensusWithAggregation(
+        logger.info('Executing consensus analysis with aggregation and structured output', {
+          sessionId,
+          inputModelCount: consensusModels.length,
+          inputModels: consensusModels.map((m) => m.name),
+          aggregatorModel: aggregatorModel.name,
+        });
+
+        const consensusResult = await this.agentExecutor.executeConsensusWithAggregation(
           consensusModels,
           aggregatorModel,
           analysisPrompt,
@@ -99,71 +107,83 @@ export class CredibilityAnalyzer {
             temperature: 0.2,
             maxTokens: 4000,
             timeout: options?.timeout || 120000,
-          }
+          },
+          CredibilityAnalysisResultSchema
         );
 
-      logger.info('Consensus analysis with aggregation completed', {
-        sessionId,
-        model: consensusResult.model,
-        tokensUsed: consensusResult.tokensUsed,
-        processingTime: consensusResult.processingTime,
-        contentLength: consensusResult.content.length,
-        contentPreview: consensusResult.content.substring(0, 100) + '...',
-      });
+        logger.info('Consensus analysis with aggregation and structured output completed', {
+          sessionId,
+          model: consensusResult.model,
+          tokensUsed: consensusResult.tokensUsed,
+          processingTime: consensusResult.processingTime,
+          crediScore: consensusResult.content.crediScore,
+        });
 
-      result = { responses: [consensusResult] };
-      modelUsed = consensusResult.model;
-    } else {
-      logger.info('Executing single model analysis', {
-        sessionId,
-        model: models[0].name,
-      });
+        analysisResult = consensusResult.content;
+        modelUsed = consensusResult.model;
+        totalTokens = consensusResult.tokensUsed || 0;
+      } else {
+        logger.info('Executing single model analysis with structured output', {
+          sessionId,
+          model: models[0].name,
+        });
 
-      // Use single model execution
-      const singleResult = await this.agentExecutor.executeAgent(
-        models[0],
-        analysisPrompt,
-        {
-          temperature: 0.2,
-          maxTokens: 4000,
-          timeout: options?.timeout || 120000,
-        }
+        // Use single model execution with structured output
+        const singleResult = await this.agentExecutor.executeAgent(
+          models[0],
+          analysisPrompt,
+          {
+            temperature: 0.2,
+            maxTokens: 4000,
+            timeout: options?.timeout || 120000,
+          },
+          CredibilityAnalysisResultSchema
+        );
+
+        logger.info('Single model analysis with structured output completed', {
+          sessionId,
+          model: singleResult.model,
+          tokensUsed: singleResult.tokensUsed,
+          processingTime: singleResult.processingTime,
+          crediScore: singleResult.content.crediScore,
+        });
+
+        analysisResult = singleResult.content;
+        modelUsed = singleResult.model;
+        totalTokens = singleResult.tokensUsed || 0;
+      }
+    } catch (error) {
+      logger.error('Structured output analysis failed', {
+        sessionId,
+        executionType,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        processingTime: Date.now() - startTime,
+      });
+      
+      throw new Error(
+        `Credibility analysis failed with structured output: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
-
-      logger.info('Single model analysis completed', {
-        sessionId,
-        model: singleResult.model,
-        tokensUsed: singleResult.tokensUsed,
-        processingTime: singleResult.processingTime,
-        contentLength: singleResult.content.length,
-        contentPreview: singleResult.content.substring(0, 100) + '...',
-      });
-
-      result = { responses: [singleResult] };
-      modelUsed = singleResult.model;
     }
 
-    // Use the first successful response for analysis content
-    const analysisContent = result.responses[0]?.content || '';
-    const totalTokens = result.responses.reduce(
-      (sum: number, r: any) => sum + (r.tokensUsed || 0),
-      0
-    );
-
-    logger.info('Selecting response for final analysis', {
+    logger.info('Structured analysis result received', {
       sessionId,
-      selectedModel: result.responses[0]?.model,
-      selectedResponseLength: analysisContent.length,
-      aggregationStrategy: 'first_response', // Currently using first response
-      totalResponses: result.responses.length,
+      crediScore: analysisResult.crediScore,
+      overviewSampledPosts: analysisResult.overview['Sampled Posts'],
+      criteriaCount: analysisResult.criteriaEvaluation.length,
+      representativePostsCount: analysisResult.representativePosts.length,
+      modelUsed,
     });
 
-    // Parse the result and convert to Analysis format
-    const finalResult = this.parseAnalysisResult(analysisContent, profileInfo, {
-      processingTimeMs: Date.now() - startTime,
-      modelUsed,
-      tokensUsed: totalTokens,
-    });
+    // Convert structured result to Analysis format
+    const finalResult = this.convertStructuredResultToAnalysis(
+      analysisResult,
+      profileInfo,
+      {
+        processingTimeMs: Date.now() - startTime,
+        modelUsed,
+        tokensUsed: totalTokens,
+      }
+    );
 
     // Add the analysis prompt to the result
     finalResult.analysisPrompt = analysisPrompt;
@@ -217,31 +237,41 @@ export class CredibilityAnalyzer {
       model: models[0].name,
     });
 
-    const result = await this.agentExecutor.executeAgent(models[0], scoringPrompt, {
-      temperature: 0.1,
-      maxTokens: 1000,
-    });
+    try {
+      const result = await this.agentExecutor.executeAgent(
+        models[0], 
+        scoringPrompt, 
+        {
+          temperature: 0.1,
+          maxTokens: 1000,
+        },
+        ScoringResultSchema
+      );
 
-    logger.info('Scoring completed', {
-      sessionId,
-      model: result.model,
-      tokensUsed: result.tokensUsed,
-      processingTime: result.processingTime,
-      contentLength: result.content?.length || 0,
-    });
+      logger.info('Scoring completed with structured output', {
+        sessionId,
+        model: result.model,
+        tokensUsed: result.tokensUsed,
+        processingTime: result.processingTime,
+        score: result.content.score,
+        reasoningLength: result.content.reasoning.length,
+      });
 
-    const scoringResult = this.parseScoringResult(result.content || '');
-    
-    logger.info('Scoring result parsed', {
-      sessionId,
-      score: scoringResult.score,
-      reasoningLength: scoringResult.reasoning.length,
-    });
-
-    return {
-      ...scoringResult,
-      scoringPrompt,
-    };
+      return {
+        score: result.content.score,
+        reasoning: result.content.reasoning,
+        scoringPrompt,
+      };
+    } catch (error) {
+      logger.error('Structured scoring failed', {
+        sessionId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      
+      throw new Error(
+        `Profile scoring failed with structured output: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   }
 
   private getConfiguredModels(executionType: string): ModelConfig[] {
@@ -511,8 +541,10 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
     return template.replace('{analysisData}', JSON.stringify(analysisData));
   }
 
-  private parseAnalysisResult(
-    result: string,
+
+
+  private convertStructuredResultToAnalysis(
+    structuredResult: CredibilityAnalysisResult,
     profileInfo: any,
     metadata: {
       processingTimeMs: number;
@@ -520,156 +552,66 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
       tokensUsed: number;
     }
   ): Omit<Analysis, 'id' | 'createdAt'> {
-    logger.debug('Parsing analysis result', {
-      resultLength: result.length,
-      resultPreview: result.substring(0, 200) + '...',
+    logger.debug('Converting structured result to Analysis format', {
+      crediScore: structuredResult.crediScore,
+      criteriaCount: structuredResult.criteriaEvaluation.length,
+      representativePostsCount: structuredResult.representativePosts.length,
       metadata,
     });
 
-    try {
-      // Try to parse JSON from the result
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        logger.warn('No JSON found in analysis response', {
-          resultLength: result.length,
-          resultPreview: result.substring(0, 500),
-        });
-        throw new Error('No JSON found in response');
-      }
+    // Convert structured result to the sections format expected by the database
+    const sections = [
+      {
+        name: 'overview',
+        data: structuredResult.overview,
+      },
+      {
+        name: 'strengths',
+        data: structuredResult.strengths,
+      },
+      {
+        name: 'criteria_evaluation',
+        data: structuredResult.criteriaEvaluation,
+      },
+      {
+        name: 'representative_posts',
+        data: structuredResult.representativePosts,
+      },
+      {
+        name: 'score_justification',
+        data: structuredResult.scoreJustification,
+      },
+    ];
 
-      logger.debug('Found JSON in response', {
-        jsonLength: jsonMatch[0].length,
-        jsonPreview: jsonMatch[0].substring(0, 200) + '...',
-      });
+    const finalResult = {
+      profileUrl: '', // Will be set by caller
+      platform: this.detectPlatform(profileInfo.username || ''),
+      username: profileInfo.username || 'unknown',
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      crediScore: structuredResult.crediScore,
+      sections,
+      processingTimeMs: metadata.processingTimeMs,
+      modelUsed: metadata.modelUsed,
+      tokensUsed: metadata.tokensUsed,
+      requestedBy: null,
+      analysisPrompt: null, // Will be set by caller
+      scoringPrompt: null, // Will be set by caller if used
+    };
 
-      const parsed = JSON.parse(jsonMatch[0]);
-      logger.debug('Successfully parsed JSON response', {
-        hasOverview: !!parsed.overview,
-        hasStrengths: !!parsed.strengths,
-        hasCriteriaEvaluation: !!parsed.criteriaEvaluation,
-        hasRepresentativePosts: !!parsed.representativePosts,
-        hasScoreJustification: !!parsed.scoreJustification,
-        crediScore: parsed.crediScore,
-        parsedKeys: Object.keys(parsed),
-      });
+    logger.info('Structured result converted to Analysis format successfully', {
+      finalScore: finalResult.crediScore,
+      sectionCount: sections.length,
+      overviewFields: Object.keys(structuredResult.overview).length,
+      strengthsFields: Object.keys(structuredResult.strengths).length,
+      criteriaEvaluations: structuredResult.criteriaEvaluation.length,
+      representativePosts: structuredResult.representativePosts.length,
+      scoreJustificationFields: Object.keys(structuredResult.scoreJustification).length,
+    });
 
-      // Convert to AnalysisResult format
-      const sections = [
-        {
-          name: 'overview',
-          data: parsed.overview || {},
-        },
-        {
-          name: 'strengths',
-          data: parsed.strengths || {},
-        },
-        {
-          name: 'criteria_evaluation',
-          data: parsed.criteriaEvaluation || {},
-        },
-        {
-          name: 'representative_posts',
-          data: parsed.representativePosts || {},
-        },
-        {
-          name: 'score_justification',
-          data: parsed.scoreJustification || {},
-        },
-      ];
-
-      const finalResult = {
-        profileUrl: '', // Will be set by caller
-        platform: this.detectPlatform(profileInfo.username || ''),
-        username: profileInfo.username || 'unknown',
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-        crediScore: parsed.crediScore || 5,
-        sections,
-        processingTimeMs: metadata.processingTimeMs,
-        modelUsed: metadata.modelUsed,
-        tokensUsed: metadata.tokensUsed,
-        requestedBy: null,
-        analysisPrompt: null, // Will be set by caller
-        scoringPrompt: null, // Will be set by caller if used
-      };
-
-      logger.info('Analysis result parsed successfully', {
-        finalScore: finalResult.crediScore,
-        sectionCount: sections.length,
-        sectionsWithData: sections.filter(
-          (s) =>
-            s.data &&
-            typeof s.data === 'object' &&
-            Object.keys(s.data).length > 0
-        ).length,
-        aggregationMethod: 'single_response_parsing', // Currently using first/only response
-      });
-
-      return finalResult;
-    } catch (error) {
-      logger.error('Failed to parse analysis result', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        resultLength: result.length,
-        resultSample: result.substring(0, 1000),
-      });
-
-      // Fallback: create a basic result with the raw response
-      const fallbackResult = {
-        profileUrl: '',
-        platform: this.detectPlatform(profileInfo.username || ''),
-        username: profileInfo.username || 'unknown',
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        crediScore: 5,
-        sections: [
-          {
-            name: 'raw_analysis',
-            data: {
-              'Analysis Result': result,
-              Note: 'Failed to parse structured response, showing raw output',
-            },
-          },
-        ],
-        processingTimeMs: metadata.processingTimeMs,
-        modelUsed: metadata.modelUsed,
-        tokensUsed: metadata.tokensUsed,
-        requestedBy: null,
-        analysisPrompt: null, // Will be set by caller
-        scoringPrompt: null, // Will be set by caller if used
-      };
-
-      logger.warn('Using fallback analysis result', {
-        fallbackScore: fallbackResult.crediScore,
-        rawContentLength: result.length,
-      });
-
-      return fallbackResult;
-    }
+    return finalResult;
   }
 
-  private parseScoringResult(result: string): {
-    score: number;
-    reasoning: string;
-  } {
-    try {
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in response');
-      }
 
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        score: parsed.score || 5,
-        reasoning: parsed.reasoning || 'Score calculated by AI analysis',
-      };
-    } catch (error) {
-      logger.error('Failed to parse scoring result', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      return {
-        score: 5,
-        reasoning: 'Failed to parse scoring result: ' + result,
-      };
-    }
-  }
 
   private getMockAnalysisResult(
     profileInfo: any

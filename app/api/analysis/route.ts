@@ -154,15 +154,19 @@ export async function POST(request: NextRequest) {
           processingTime: analysisResult.processingTimeMs,
         });
       } catch (error) {
-        logger.error('AI agent analysis failed, falling back to mock data', {
+        logger.error('AI agent analysis failed', {
           error: error instanceof Error ? error.message : 'Unknown error',
+          url: normalizedUrl,
         });
 
-        // Fallback to mock data if AI analysis fails
-        analysisResult = generateMockAnalysisResult(
-          normalizedUrl,
-          validationResult.platform,
-          platformInfo.username
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'Analysis failed. Please try again later.',
+            details: 'Our analysis service is currently experiencing issues.',
+            type: 'analysis_error'
+          },
+          { status: 500 }
         );
       }
     } else {

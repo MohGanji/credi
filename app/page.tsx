@@ -21,12 +21,22 @@ interface AnalysisResult {
   };
 }
 
+interface AnalysisError {
+  success: false;
+  error: string;
+  details: string;
+  type: string;
+}
+
 export default function Home() {
   const router = useRouter();
   const [url, setUrl] = useState('');
   const [validationResult, setValidationResult] =
     useState<ValidationResult | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
+    null
+  );
+  const [analysisError, setAnalysisError] = useState<AnalysisError | null>(
     null
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -49,6 +59,7 @@ export default function Home() {
 
     setIsAnalyzing(true);
     setAnalysisResult(null);
+    setAnalysisError(null);
 
     try {
       const response = await fetch('/api/analysis', {
@@ -64,7 +75,9 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to start analysis');
+        // Handle API error response
+        setAnalysisError(data);
+        return;
       }
 
       setAnalysisResult(data);
@@ -75,9 +88,13 @@ export default function Home() {
       }, 2000); // Give user time to see the success message
     } catch (error) {
       console.error('Error starting analysis:', error);
-      alert(
-        `Error starting analysis: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      // Handle network or other errors
+      setAnalysisError({
+        success: false,
+        error: 'Network error occurred',
+        details: 'Please check your connection and try again.',
+        type: 'network_error'
+      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -199,6 +216,70 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {/* Analysis Error Message */}
+      {analysisError && (
+        <div className="bg-white rounded-lg shadow-md p-8 mt-8">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="flex-shrink-0">
+              <svg
+                className="h-8 w-8 text-red-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-red-800">
+                Analysis Failed
+              </h3>
+              <p className="text-sm text-red-600">{analysisError.error}</p>
+            </div>
+          </div>
+
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="mb-3">
+              <p className="text-sm font-medium text-red-800 mb-2">
+                What happened?
+              </p>
+              <p className="text-sm text-red-700">
+                {analysisError.details}
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-red-200">
+              <p className="text-sm font-medium text-red-800 mb-2">
+                What can you do?
+              </p>
+              <ul className="text-sm text-red-700 space-y-1">
+                <li>• Check that the profile URL is correct and accessible</li>
+                <li>• Wait a few minutes and try again</li>
+                <li>• Try a different profile if the issue persists</li>
+              </ul>
+            </div>
+
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={() => {
+                  setAnalysisError(null);
+                  setUrl('');
+                  setValidationResult(null);
+                }}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+              >
+                Try Another Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Analysis Success Message */}
       {analysisResult && (

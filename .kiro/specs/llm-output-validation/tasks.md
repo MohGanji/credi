@@ -26,17 +26,41 @@
   - Create example schema showing proper documentation patterns
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 5. Update CredibilityAnalyzer to use structured output
+- [x] 5. Update CredibilityAnalyzer to use structured output
   - Replace manual JSON parsing with LangChain structured output
+  - Use the two main AgentExecutorService methods: executeAgent for single model, executeConsensusWithAggregation for consensus
   - Update analyzeProfile method to pass well-documented Zod schema and receive typed result
   - Remove fallback logic for raw responses in favor of guaranteed typed responses
   - Update error handling to work with LangChain's structured output errors
+  - Keep all Zod schemas in the dedicated schemas directory, not inline in service files
   - _Requirements: 1.4, 4.3_
 
-- [ ] 6. Add comprehensive tests for LangChain integration
+- [ ] 6. Implement retry mechanism with enhanced prompts for structured output failures
+  - Add configurable retry count (default 3 attempts) to AgentExecutorService methods
+  - When structured output fails, enhance prompt with explicit schema format instructions
+  - Include examples of valid JSON structure in retry prompts
+  - Add exponential backoff between retry attempts to handle rate limits
+  - Log retry attempts and failure reasons for debugging
+  - Fail gracefully after max retries with clear error message to user
+  - Apply retry logic to both single model execution and consensus aggregation
+  - _Requirements: 1.4, 3.3, 4.3_
+
+- [ ] 7. Update prompts with strict, authoritative language for better compliance
+  - Rewrite CREDIBILITY_ANALYSIS_PROMPT with strong, imperative language
+  - Add CRITICAL REQUIREMENTS section with MUST/NEVER statements
+  - Include explicit warnings about format violations and consequences
+  - Use authoritative tone: "You MUST", "NEVER deviate", "CRITICAL", "REQUIRED"
+  - Add schema compliance warnings: "Failure to follow this format will result in system errors"
+  - Update CREDIBILITY_SCORING_PROMPT with similar strict language
+  - Test that stricter prompts improve structured output compliance rates
+  - _Requirements: 1.4, 2.2, 3.3_
+
+- [ ] 8. Add comprehensive tests for LangChain integration
   - Write unit tests for AgentExecutorService with various Zod schemas
   - Test that well-documented schemas improve LLM response quality
   - Write integration tests with CredibilityAnalyzer using structured output
   - Test backward compatibility ensuring existing calls work unchanged
   - Test error handling when LangChain structured output fails
+  - Test retry mechanism with mock failures and recovery scenarios
+  - Test that stricter prompts improve compliance compared to original prompts
   - _Requirements: 2.4, 3.4, 4.3_

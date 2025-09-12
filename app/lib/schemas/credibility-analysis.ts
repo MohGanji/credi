@@ -24,8 +24,20 @@ export const OverviewSectionSchema = z.object({
 }).describe("High-level summary providing context about the analysis scope, timing, and profile characteristics");
 
 // Strengths section schema for positive credibility indicators
-export const StrengthsSectionSchema = z.record(z.string(), z.string())
-  .describe("Key-value pairs highlighting positive credibility indicators found in the profile. Keys should be strength categories (e.g., 'Source Citations', 'Balanced Perspective') and values should be specific examples or explanations of how this strength manifests in the content");
+export const StrengthsSectionSchema = z.object({
+  'Source Citations': z.string().optional()
+    .describe("Examples of how the profile cites sources and references for claims"),
+  'Balanced Perspective': z.string().optional()
+    .describe("Evidence of presenting multiple viewpoints or acknowledging limitations"),
+  'Expert Credentials': z.string().optional()
+    .describe("Relevant qualifications or expertise demonstrated in the content"),
+  'Transparent Communication': z.string().optional()
+    .describe("Clear, honest communication style without hidden agendas"),
+  'Evidence-Based Claims': z.string().optional()
+    .describe("Use of data, research, or factual evidence to support statements"),
+  'Constructive Tone': z.string().optional()
+    .describe("Professional, respectful communication that builds understanding"),
+}).describe("Positive credibility indicators found in the profile, with specific examples of how each strength manifests in the content");
 
 // Individual criteria evaluation schema
 export const CriteriaEvaluationItemSchema = z.object({
@@ -98,8 +110,20 @@ export const CredibilityAnalysisResultSchema = z.object({
   scoreJustification: ScoreJustificationSectionSchema
 }).describe("Complete credibility analysis result containing a numerical score and detailed breakdown of all evaluation criteria, strengths, representative content, and score justification");
 
+// Simple schema for scoring results
+export const ScoringResultSchema = z.object({
+  score: z.number()
+    .min(0)
+    .max(10)
+    .describe("Credibility score from 0-10 based on the analysis data"),
+  
+  reasoning: z.string()
+    .describe("Detailed explanation of how the score was calculated and what factors influenced it")
+}).describe("Scoring result with numerical score and detailed reasoning");
+
 // Type inference for TypeScript usage
 export type CredibilityAnalysisResult = z.infer<typeof CredibilityAnalysisResultSchema>;
+export type ScoringResult = z.infer<typeof ScoringResultSchema>;
 export type OverviewSection = z.infer<typeof OverviewSectionSchema>;
 export type StrengthsSection = z.infer<typeof StrengthsSectionSchema>;
 export type CriteriaEvaluationSection = z.infer<typeof CriteriaEvaluationSectionSchema>;
