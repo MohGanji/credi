@@ -588,8 +588,8 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
         modelUsed: metadata.modelUsed,
         tokensUsed: metadata.tokensUsed,
         requestedBy: null,
-        analysisPrompt: undefined, // Will be set by caller
-        scoringPrompt: undefined, // Will be set by caller if used
+        analysisPrompt: null, // Will be set by caller
+        scoringPrompt: null, // Will be set by caller if used
       };
 
       logger.info('Analysis result parsed successfully', {
@@ -632,8 +632,8 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
         modelUsed: metadata.modelUsed,
         tokensUsed: metadata.tokensUsed,
         requestedBy: null,
-        analysisPrompt: undefined, // Will be set by caller
-        scoringPrompt: undefined, // Will be set by caller if used
+        analysisPrompt: null, // Will be set by caller
+        scoringPrompt: null, // Will be set by caller if used
       };
 
       logger.warn('Using fallback analysis result', {
@@ -696,8 +696,8 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
       modelUsed: 'mock-model',
       tokensUsed: 2500,
       requestedBy: null,
-      analysisPrompt: undefined, // Will be set by caller
-      scoringPrompt: undefined, // Will be set by caller if used
+      analysisPrompt: null, // Will be set by caller
+      scoringPrompt: null, // Will be set by caller if used
     };
   }
 

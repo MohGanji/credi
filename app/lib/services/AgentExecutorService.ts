@@ -2,6 +2,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { HumanMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 
@@ -505,7 +506,7 @@ Provide your synthesized response:`;
   private createLangChainModel(
     model: ModelConfig,
     config?: AgentConfig
-  ): BaseLanguageModel {
+  ): BaseChatModel {
     const temperature = config?.temperature ?? model.temperature ?? 0.7;
     const maxTokens = config?.maxTokens ?? model.maxTokens ?? 4000;
 

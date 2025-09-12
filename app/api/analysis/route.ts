@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
             id: post.id,
             content: post.content,
             timestamp: post.createdAt,
-            links: post.links || [],
+            links: [], // Links are not currently tracked in Post interface
           }));
 
           profileInfo = {
