@@ -1,45 +1,42 @@
 # Implementation Plan
 
-- [ ] 1. Add Zod dependency and setup validation infrastructure
-  - Add zod and zod-to-json-schema packages to package.json
-  - Create utility function for converting Zod schemas to JSON Schema format
-  - Add ValidationError class for structured error handling
-  - _Requirements: 1.1, 2.1, 2.4_
+- [ ] 1. Add Zod dependency for schema definitions
+  - Add zod package to package.json (LangChain already installed)
+  - No need for zod-to-json-schema as LangChain handles schema conversion internally
+  - _Requirements: 1.1, 2.1_
 
-- [ ] 2. Extend AgentExecutorService with optional schema validation
-  - Add optional generic schema parameter to executeAgent method signature
-  - Add optional generic schema parameter to agentConsensus method signature
-  - Implement backward compatibility ensuring existing calls work unchanged
-  - _Requirements: 1.1, 4.1, 4.2_
+- [ ] 2. Extend AgentExecutorService with LangChain structured output support
+  - Add method overloads to executeAgent and agentConsensus for type safety
+  - When schema provided, return parsed type directly (not AgentResponse)
+  - When no schema provided, return AgentResponse as before for backward compatibility
+  - Implement LangChain's withStructuredOutput() integration for structured responses
+  - _Requirements: 1.1, 1.2, 4.1, 4.2, 4.3_
 
-- [ ] 3. Implement simple prompt enhancement with schema information
-  - Create function to convert Zod schema to JSON Schema string
-  - Create function to enhance prompts with schema requirements
-  - Add simple JSON formatting instructions to enhanced prompts
-  - _Requirements: 3.1, 3.2_
+- [ ] 3. Implement structured output logic using LangChain's built-in capabilities
+  - Modify executeAgent to use withStructuredOutput() when schema provided
+  - Let LangChain handle provider-specific optimizations (function calling, JSON mode)
+  - Return only the parsed, type-safe data when schema is provided
+  - Handle LangChain errors and wrap them in clear error messages
+  - _Requirements: 1.3, 1.4, 3.1, 3.2, 3.3_
 
-- [ ] 4. Add response parsing and validation logic
-  - Implement JSON extraction from LLM responses (handle markdown code blocks)
-  - Add Zod schema validation with clear error reporting
-  - Create ValidationError with original response and validation details
-  - _Requirements: 1.2, 2.3, 2.4_
+- [ ] 4. Create well-documented Zod schemas for credibility analysis
+  - Define comprehensive Zod schema for credibility analysis response format
+  - Add detailed .describe() calls to all schema fields explaining their purpose
+  - Include descriptions for nested objects and arrays to guide LLM responses
+  - Create example schema showing proper documentation patterns
+  - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 5. Implement simple retry mechanism
-  - Add retry logic with fixed 2 retry attempts on validation failures
-  - Enhance retry prompts with simple "return valid JSON" instruction
-  - Add basic logging for validation failures
-  - _Requirements: 1.3, 3.3_
+- [ ] 5. Update CredibilityAnalyzer to use structured output
+  - Replace manual JSON parsing with LangChain structured output
+  - Update analyzeProfile method to pass well-documented Zod schema and receive typed result
+  - Remove fallback logic for raw responses in favor of guaranteed typed responses
+  - Update error handling to work with LangChain's structured output errors
+  - _Requirements: 1.4, 4.3_
 
-- [ ] 6. Update CredibilityAnalyzer to use validated responses
-  - Define Zod schema for credibility analysis response format
-  - Update analyzeProfile method to use schema validation
-  - Remove manual JSON parsing and fallback logic in favor of validated responses
-  - Update error handling to use ValidationError instead of raw response fallback
-  - _Requirements: 1.1, 4.4_
-
-- [ ] 7. Add basic tests for validation functionality
-  - Write unit tests for schema conversion utilities
-  - Write unit tests for validation and retry logic with mocked LLM responses
-  - Write integration test with CredibilityAnalyzer using real schema
-  - Test backward compatibility with existing AgentExecutorService calls
-  - _Requirements: 2.2, 4.3_
+- [ ] 6. Add comprehensive tests for LangChain integration
+  - Write unit tests for AgentExecutorService with various Zod schemas
+  - Test that well-documented schemas improve LLM response quality
+  - Write integration tests with CredibilityAnalyzer using structured output
+  - Test backward compatibility ensuring existing calls work unchanged
+  - Test error handling when LangChain structured output fails
+  - _Requirements: 2.4, 3.4, 4.3_

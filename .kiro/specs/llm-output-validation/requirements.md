@@ -2,49 +2,50 @@
 
 ## Introduction
 
-This feature enhances the reliability of LLM (Large Language Model) interactions by adding an optional validation parameter to the AgentExecutorService. Currently, when LLM responses fail to parse into expected formats, the system falls back to displaying raw output, which provides poor user experience and unreliable data processing. This feature will allow developers to specify an expected Zod schema as an optional parameter, and the service will handle validation, simple retries, and type safety automatically.
+This feature enhances the reliability of LLM (Large Language Model) interactions by adding optional structured output validation to the AgentExecutorService using LangChain's built-in `withStructuredOutput()` method. Currently, when LLM responses fail to parse into expected formats, the system falls back to displaying raw output, which provides poor user experience and unreliable data processing. This feature will allow developers to specify an expected Zod schema as an optional parameter, leveraging LangChain's provider-optimized structured output capabilities for reliable, type-safe responses.
 
 ## Requirements
 
 ### Requirement 1
 
-**User Story:** As a developer using LLM services, I want to specify an expected Zod schema as an optional parameter so that I can reliably get structured, validated responses without handling parsing logic myself.
+**User Story:** As a developer using LLM services, I want to specify an expected Zod schema as an optional parameter so that I can reliably get structured, validated responses using LangChain's built-in capabilities.
 
 #### Acceptance Criteria
 
 1. WHEN calling AgentExecutorService methods THEN developers SHALL be able to pass an optional Zod schema parameter
-2. WHEN a schema is provided THEN the system SHALL validate LLM responses against it before returning
-3. WHEN validation fails THEN the system SHALL automatically retry up to 2 times with enhanced prompts
-4. WHEN validation succeeds THEN the system SHALL return the parsed, type-safe data matching the requested type
+2. WHEN a schema is provided THEN the system SHALL use LangChain's `withStructuredOutput()` method for validation
+3. WHEN LangChain handles retries internally THEN the system SHALL leverage its built-in retry and enhancement logic
+4. WHEN validation succeeds THEN the system SHALL return only the parsed, type-safe data matching the requested type (no raw content)
 
 ### Requirement 2
 
-**User Story:** As a developer, I want to define response schemas using Zod so that I can ensure type safety throughout the application.
+**User Story:** As a developer, I want to define response schemas using well-documented Zod schemas so that LLMs understand exactly what output is expected.
 
 #### Acceptance Criteria
 
-1. WHEN defining LLM response expectations THEN developers SHALL be able to use Zod schemas for validation
-2. WHEN defining LLM response expectations THEN developers SHALL automatically get TypeScript types from Zod schemas
-3. WHEN validation occurs THEN the system SHALL provide clear error messages about schema violations
-4. WHEN validation fails completely THEN the system SHALL throw a ValidationError with the original response
+1. WHEN defining LLM response expectations THEN developers SHALL use Zod schemas with detailed descriptions for all fields
+2. WHEN creating Zod schemas THEN all fields SHALL include descriptive `.describe()` calls to guide LLM responses
+3. WHEN defining nested objects THEN each level SHALL have clear descriptions explaining the purpose and expected content
+4. WHEN validation occurs THEN LangChain SHALL automatically provide schema information to the LLM for better compliance
 
 ### Requirement 3
 
-**User Story:** As a developer, I want the system to automatically improve prompts on validation failures so that retry attempts have higher success rates.
+**User Story:** As a developer, I want to leverage LangChain's provider-optimized structured output so that I get the best performance and reliability for each LLM provider.
 
 #### Acceptance Criteria
 
-1. WHEN initial validation fails THEN the system SHALL enhance the prompt with JSON schema information
-2. WHEN validation fails THEN the system SHALL include a simple instruction to return valid JSON
-3. WHEN all retries fail THEN the system SHALL throw an error with validation details
+1. WHEN using OpenAI models THEN the system SHALL leverage function calling through LangChain's implementation
+2. WHEN using Anthropic models THEN the system SHALL leverage tool use through LangChain's implementation
+3. WHEN using other providers THEN the system SHALL use LangChain's fallback mechanisms (JSON mode, enhanced prompting)
+4. WHEN any provider fails THEN LangChain SHALL handle retries and error recovery automatically
 
 ### Requirement 4
 
-**User Story:** As a developer, I want seamless integration with existing AgentExecutorService so that I can add validation by simply passing an optional parameter without changing any other code.
+**User Story:** As a developer, I want seamless integration with existing AgentExecutorService so that I can add structured output by simply passing an optional parameter without changing any other code.
 
 #### Acceptance Criteria
 
-1. WHEN validation is not needed THEN existing AgentExecutorService calls SHALL work exactly as before
+1. WHEN validation is not needed THEN existing AgentExecutorService calls SHALL work exactly as before returning AgentResponse
 2. WHEN validation is needed THEN developers SHALL only need to add an optional schema parameter to existing method calls
-3. WHEN using different LLM providers THEN validation SHALL work uniformly across all supported models
-4. WHEN validation fails completely THEN the system SHALL throw a clear ValidationError rather than returning raw unparseable output
+3. WHEN a schema is provided THEN the method SHALL return the parsed type directly instead of AgentResponse
+4. WHEN structured output fails completely THEN the system SHALL throw a clear error with LangChain's error details
