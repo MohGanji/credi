@@ -45,14 +45,14 @@
   - Keep retry enhancement simple: fixed message about JSON format compliance
   - _Requirements: 1.4, 3.3, 4.3_
 
-- [ ] 7. Update prompts with strict, authoritative language for better compliance
-  - Rewrite CREDIBILITY_ANALYSIS_PROMPT with strong, imperative language
-  - Add CRITICAL REQUIREMENTS section with MUST/NEVER statements
-  - Include explicit warnings about format violations and consequences
-  - Use authoritative tone: "You MUST", "NEVER deviate", "CRITICAL", "REQUIRED"
-  - Add schema compliance warnings: "Failure to follow this format will result in system errors"
-  - Update CREDIBILITY_SCORING_PROMPT with similar strict language
-  - Test that stricter prompts improve structured output compliance rates
+- [x] 7. Add strict formatting instructions to prompts for better output structure compliance
+  - Add formatting requirements section to existing prompts (don't rewrite content)
+  - Include explicit JSON format compliance instructions at end of prompts
+  - Add warnings about structure violations: "You MUST respond with valid JSON matching the schema"
+  - Focus only on output format requirements, not analysis content changes
+  - Add schema compliance reminders: "Ensure all required fields are present and properly typed"
+  - Keep existing prompt content intact, only append formatting requirements
+  - Test that format-focused instructions improve structured output compliance rates
   - _Requirements: 1.4, 2.2, 3.3_
 
 - [ ] 8. Add comprehensive tests for LangChain integration
