@@ -35,14 +35,14 @@
   - Keep all Zod schemas in the dedicated schemas directory, not inline in service files
   - _Requirements: 1.4, 4.3_
 
-- [ ] 6. Implement retry mechanism with enhanced prompts for structured output failures
+- [x] 6. Implement simple retry mechanism for structured output failures
   - Add configurable retry count (default 3 attempts) to AgentExecutorService methods
-  - When structured output fails, enhance prompt with explicit schema format instructions
-  - Include examples of valid JSON structure in retry prompts
-  - Add exponential backoff between retry attempts to handle rate limits
+  - When structured output fails on retry attempts, add fixed instructions to prompt about JSON format requirements
+  - Use simple retry logic without exponential backoff - just retry {count} times immediately
   - Log retry attempts and failure reasons for debugging
   - Fail gracefully after max retries with clear error message to user
   - Apply retry logic to both single model execution and consensus aggregation
+  - Keep retry enhancement simple: fixed message about JSON format compliance
   - _Requirements: 1.4, 3.3, 4.3_
 
 - [ ] 7. Update prompts with strict, authoritative language for better compliance

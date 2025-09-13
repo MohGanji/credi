@@ -1,7 +1,6 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { HumanMessage } from '@langchain/core/messages';
 import { z } from 'zod';
@@ -17,6 +16,7 @@ export interface AgentConfig {
   temperature?: number;
   maxTokens?: number;
   timeout?: number;
+  retryCount?: number; // Default 3 attempts for structured output failures
 }
 
 export interface AgentResponse<T = string> {
@@ -82,15 +82,24 @@ export class AgentExecutorService {
         executionId,
       });
 
-      // If schema is provided, use structured output
+      // If schema is provided, use structured output with retry mechanism
       if (schema) {
-        console.log(`[AgentExecutor] Using structured output with schema`, {
+        const maxRetries = config?.retryCount ?? 3;
+        console.log(`[AgentExecutor] Using structured output with schema and retry mechanism`, {
           executionId,
           model: model.name,
+          maxRetries,
         });
 
-        const structuredModel = langchainModel.withStructuredOutput(schema);
-        const result = await structuredModel.invoke([new HumanMessage(prompt)]);
+        const result = await this.executeStructuredOutputWithRetry(
+          langchainModel,
+          prompt,
+          schema,
+          model.name,
+          executionId,
+          maxRetries
+        );
+        
         const processingTime = Date.now() - startTime;
         
         // Estimate tokens based on the structured result
@@ -103,6 +112,7 @@ export class AgentExecutorService {
           processingTime,
           tokensUsed,
           resultType: typeof result,
+          maxRetries,
         });
 
         return {
@@ -202,14 +212,15 @@ export class AgentExecutorService {
     try {
       // If schema is provided, use structured output for all models
       if (schema) {
+        const maxRetries = config?.retryCount ?? 3;
         console.log(
-          `[AgentExecutor] Executing ${models.length} models in parallel with structured output`,
-          { consensusId }
+          `[AgentExecutor] Executing ${models.length} models in parallel with structured output and retry mechanism`,
+          { consensusId, maxRetries }
         );
         
         const promises = models.map((model, index) => {
           console.log(
-            `[AgentExecutor] Queuing structured model ${index + 1}/${models.length}: ${model.name}`,
+            `[AgentExecutor] Queuing structured model ${index + 1}/${models.length}: ${model.name} (max retries: ${maxRetries})`,
             { consensusId }
           );
           return this.executeAgent(model, prompt, config, schema);
@@ -425,14 +436,16 @@ export class AgentExecutorService {
     try {
       // If schema is provided, use structured output
       if (schema) {
-        console.log(`[AgentExecutor] Starting structured consensus with aggregation`, {
+        const maxRetries = config?.retryCount ?? 3;
+        console.log(`[AgentExecutor] Starting structured consensus with aggregation and retry mechanism`, {
           aggregationId,
           structuredOutput: true,
+          maxRetries,
         });
 
         // Step 1: Get structured responses from all input models
         console.log(
-          `[AgentExecutor] Step 1: Getting structured responses from input models`,
+          `[AgentExecutor] Step 1: Getting structured responses from input models (max retries: ${maxRetries})`,
           { aggregationId }
         );
         const consensusResult = await this.agentConsensus(
@@ -620,6 +633,88 @@ Provide your synthesized response:`;
   private estimateTokens(text: string): number {
     // Rough estimation: ~4 characters per token
     return Math.ceil(text.length / 4);
+  }
+
+  /**
+   * Add fixed retry instructions to prompt for structured output failures
+   */
+  private addRetryInstructions(originalPrompt: string): string {
+    return `${originalPrompt}
+
+IMPORTANT: You MUST respond with valid JSON that matches the required schema format exactly. Do not include any text before or after the JSON. Do not wrap the JSON in markdown code blocks. Ensure all required fields are present and field types match exactly.`;
+  }
+
+  /**
+   * Execute structured output with simple retry mechanism
+   */
+  private async executeStructuredOutputWithRetry<T>(
+    langchainModel: BaseChatModel,
+    originalPrompt: string,
+    schema: z.ZodSchema<T>,
+    modelName: string,
+    executionId: string,
+    maxRetries: number = 3
+  ): Promise<T> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const isRetry = attempt > 0;
+        const prompt = isRetry 
+          ? this.addRetryInstructions(originalPrompt)
+          : originalPrompt;
+        
+        if (isRetry) {
+          console.log(`[AgentExecutor] Retrying structured output (attempt ${attempt + 1}/${maxRetries})`, {
+            executionId,
+            model: modelName,
+            attempt: attempt + 1,
+            previousError: lastError?.message,
+          });
+        }
+        
+        const structuredModel = langchainModel.withStructuredOutput(schema);
+        const result = await structuredModel.invoke([new HumanMessage(prompt)]);
+        
+        if (isRetry) {
+          console.log(`[AgentExecutor] Structured output retry succeeded`, {
+            executionId,
+            model: modelName,
+            successfulAttempt: attempt + 1,
+          });
+        }
+        
+        return result as T;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        console.warn(`[AgentExecutor] Structured output attempt ${attempt + 1} failed`, {
+          executionId,
+          model: modelName,
+          attempt: attempt + 1,
+          maxRetries,
+          error: lastError.message,
+          willRetry: attempt < maxRetries - 1,
+        });
+        
+        // If this is the last attempt, we'll throw the error after the loop
+        if (attempt === maxRetries - 1) {
+          break;
+        }
+      }
+    }
+    
+    // All retries failed
+    console.error(`[AgentExecutor] All structured output attempts failed`, {
+      executionId,
+      model: modelName,
+      totalAttempts: maxRetries,
+      finalError: lastError?.message,
+    });
+    
+    throw new Error(
+      `Structured output failed after ${maxRetries} attempts for ${modelName}: ${lastError?.message || 'Unknown error'}`
+    );
   }
 }
 
