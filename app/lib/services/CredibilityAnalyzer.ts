@@ -5,10 +5,12 @@ import {
   ModelConfig,
 } from './AgentExecutorService';
 import { logger } from '../logger';
-import { 
-  CredibilityAnalysisResultSchema, 
+import {
+  CredibilityAnalysisResultSchema,
   CredibilityAnalysisResult,
-  ScoringResultSchema 
+  ScoringResultSchema,
+  calculateWeightedScore,
+  DEFAULT_SCORING_WEIGHTS
 } from '../schemas/credibility-analysis';
 
 /**
@@ -111,19 +113,32 @@ export class CredibilityAnalyzer {
           CredibilityAnalysisResultSchema
         );
 
+        // Calculate weighted score from individual criteria
+        const calculatedScore = calculateWeightedScore(
+          consensusResult.content.criteriaEvaluation,
+          DEFAULT_SCORING_WEIGHTS
+        );
+
+        // Update the result with the calculated score
+        analysisResult = {
+          ...consensusResult.content,
+          crediScore: calculatedScore,
+        };
+
+        modelUsed = consensusResult.model;
+        totalTokens = consensusResult.tokensUsed || 0;
+
         logger.info('Consensus analysis with aggregation and structured output completed', {
           sessionId,
           model: consensusResult.model,
           tokensUsed: consensusResult.tokensUsed,
           processingTime: consensusResult.processingTime,
-          crediScore: consensusResult.content.crediScore,
+          originalScore: consensusResult.content.crediScore,
+          calculatedScore: calculatedScore,
+          criteriaCount: consensusResult.content.criteriaEvaluation.length,
         });
-
-        analysisResult = consensusResult.content;
-        modelUsed = consensusResult.model;
-        totalTokens = consensusResult.tokensUsed || 0;
       } else {
-        logger.info('Executing single model analysis with structured output', {
+        logger.info('Executing single model analysis with criteria-based scoring', {
           sessionId,
           model: models[0].name,
         });
@@ -140,17 +155,30 @@ export class CredibilityAnalyzer {
           CredibilityAnalysisResultSchema
         );
 
-        logger.info('Single model analysis with structured output completed', {
+        // Calculate weighted score from individual criteria
+        const calculatedScore = calculateWeightedScore(
+          singleResult.content.criteriaEvaluation,
+          DEFAULT_SCORING_WEIGHTS
+        );
+
+        // Update the result with the calculated score
+        analysisResult = {
+          ...singleResult.content,
+          crediScore: calculatedScore,
+        };
+
+        modelUsed = singleResult.model;
+        totalTokens = singleResult.tokensUsed || 0;
+
+        logger.info('Single model analysis with criteria-based scoring completed', {
           sessionId,
           model: singleResult.model,
           tokensUsed: singleResult.tokensUsed,
           processingTime: singleResult.processingTime,
-          crediScore: singleResult.content.crediScore,
+          originalScore: singleResult.content.crediScore,
+          calculatedScore: calculatedScore,
+          criteriaCount: singleResult.content.criteriaEvaluation.length,
         });
-
-        analysisResult = singleResult.content;
-        modelUsed = singleResult.model;
-        totalTokens = singleResult.tokensUsed || 0;
       }
     } catch (error) {
       logger.error('Structured output analysis failed', {
@@ -159,7 +187,7 @@ export class CredibilityAnalyzer {
         error: error instanceof Error ? error.message : 'Unknown error',
         processingTime: Date.now() - startTime,
       });
-      
+
       throw new Error(
         `Credibility analysis failed with structured output: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -222,8 +250,8 @@ export class CredibilityAnalyzer {
     // Use mock data if configured
     if (process.env.MOCK_AGENT_CALL === 'true') {
       logger.info('Using mock data for scoring', { sessionId });
-      return { 
-        score: 7.5, 
+      return {
+        score: 7.5,
         reasoning: 'Mock scoring result for testing',
         scoringPrompt,
       };
@@ -239,8 +267,8 @@ export class CredibilityAnalyzer {
 
     try {
       const result = await this.agentExecutor.executeAgent(
-        models[0], 
-        scoringPrompt, 
+        models[0],
+        scoringPrompt,
         {
           temperature: 0.1,
           maxTokens: 1000,
@@ -267,7 +295,7 @@ export class CredibilityAnalyzer {
         sessionId,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       throw new Error(
         `Profile scoring failed with structured output: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -637,6 +665,34 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
   private getMockAnalysisResult(
     profileInfo: any
   ): Omit<Analysis, 'id' | 'createdAt'> {
+    // Create mock criteria evaluation with new scoring system
+    const mockCriteriaEvaluation = [
+      {
+        criterion: 'Unnecessary Complexity',
+        score: 8.0,
+        status: 'strong' as const,
+        evaluation: 'The profile demonstrates clear communication with minimal unnecessary jargon. Content is accessible to a general audience while maintaining technical accuracy.',
+        examples: ['Uses plain language to explain complex concepts', 'Avoids excessive technical terminology'],
+      },
+      {
+        criterion: 'Lack of Sourcing',
+        score: 7.5,
+        status: 'strong' as const,
+        evaluation: 'Most claims are supported with appropriate references. Some improvement could be made in consistently citing primary sources.',
+        examples: ['Links to peer-reviewed studies', 'References authoritative sources'],
+      },
+      {
+        criterion: 'Guru Syndrome',
+        score: 6.8,
+        status: 'adequate' as const,
+        evaluation: 'Generally maintains humility while sharing expertise. Occasionally presents views with high confidence but acknowledges limitations.',
+        examples: ['Acknowledges uncertainty in some posts', 'Presents balanced viewpoints'],
+      },
+    ];
+
+    // Calculate weighted score from mock criteria
+    const calculatedScore = calculateWeightedScore(mockCriteriaEvaluation, DEFAULT_SCORING_WEIGHTS);
+
     return {
       profileUrl: '',
       platform: profileInfo.platform || 'unknown',
@@ -648,7 +704,7 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
       errorMessage: null,
       retryCount: 0,
       lastRetryAt: null,
-      crediScore: 7.5,
+      crediScore: calculatedScore,
       sections: [
         {
           name: 'overview',
@@ -658,6 +714,46 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
             'Analysis Date': new Date().toISOString(),
             Platform: profileInfo.platform || 'unknown',
             'Profile Status': 'Active',
+          },
+        },
+        {
+          name: 'criteria_evaluation',
+          data: mockCriteriaEvaluation,
+        },
+        {
+          name: 'strengths',
+          data: {
+            'Source Citations': 'Consistently references credible sources and studies',
+            'Balanced Perspective': 'Presents multiple viewpoints on complex topics',
+            'Transparent Communication': 'Clear about limitations and uncertainties',
+          },
+        },
+        {
+          name: 'representative_posts',
+          data: [
+            {
+              category: 'Educational Content',
+              content: '[Jan 15, 2024][]\nSharing insights on evidence-based practices with proper citations and balanced perspective.',
+              reasoning: 'Demonstrates commitment to factual accuracy and educational value',
+            },
+          ],
+        },
+        {
+          name: 'score_justification',
+          data: {
+            'Key Factors': [
+              'Strong sourcing practices with credible references',
+              'Clear communication without unnecessary complexity',
+              'Balanced perspective acknowledging limitations',
+            ],
+            'Why Not Higher': [
+              'Occasional overconfidence in presenting certain viewpoints',
+              'Could improve consistency in citing primary sources',
+            ],
+            'Why Not Lower': [
+              'Demonstrates genuine expertise in subject matter',
+              'Maintains professional and respectful tone',
+            ],
           },
         },
       ],

@@ -147,7 +147,7 @@ test('CredibilityAnalyzer - Configurable Execution Strategies', async (t) => {
 
     const result = await analyzer.analyzeProfile(posts, profileInfo);
 
-    t.equal(result.crediScore, 7.5, 'should return mock score');
+    t.equal(result.crediScore, 7.4, 'should return calculated mock score');
     t.equal(result.modelUsed, 'mock-model', 'should use mock model');
     t.ok(result.sections.length > 0, 'should have analysis sections');
 

@@ -99,9 +99,9 @@ export class AgentExecutorService {
           executionId,
           maxRetries
         );
-        
+
         const processingTime = Date.now() - startTime;
-        
+
         // Estimate tokens based on the structured result
         const resultString = JSON.stringify(result);
         const tokensUsed = this.estimateTokens(prompt + resultString);
@@ -152,13 +152,13 @@ export class AgentExecutorService {
         error: error instanceof Error ? error.message : 'Unknown error',
         processingTime: Date.now() - startTime,
       });
-      
+
       if (schema) {
         throw new Error(
           `Structured output failed for ${model.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
         );
       }
-      
+
       throw new Error(
         `Agent execution failed for ${model.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -217,7 +217,7 @@ export class AgentExecutorService {
           `[AgentExecutor] Executing ${models.length} models in parallel with structured output and retry mechanism`,
           { consensusId, maxRetries }
         );
-        
+
         const promises = models.map((model, index) => {
           console.log(
             `[AgentExecutor] Queuing structured model ${index + 1}/${models.length}: ${model.name} (max retries: ${maxRetries})`,
@@ -374,13 +374,13 @@ export class AgentExecutorService {
         error: error instanceof Error ? error.message : 'Unknown error',
         processingTime: Date.now() - startTime,
       });
-      
+
       if (schema) {
         throw new Error(
           `Structured consensus execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`
         );
       }
-      
+
       throw new Error(
         `Consensus execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -546,13 +546,13 @@ export class AgentExecutorService {
         error: error instanceof Error ? error.message : 'Unknown error',
         processingTime: Date.now() - startTime,
       });
-      
+
       if (schema) {
         throw new Error(
           `Structured consensus aggregation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
         );
       }
-      
+
       throw new Error(
         `Consensus aggregation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -581,14 +581,17 @@ ${responseTexts}
 Instructions:
 1. Analyze all the responses above for common themes, insights, and conclusions
 2. Identify areas where models agree and where they differ
-3. Synthesize the best elements from each response
-4. Create a single, coherent response that represents the collective intelligence
-5. Maintain the same format and structure as expected from the original prompt
-6. If there are conflicting viewpoints, use your judgment to determine the most reasonable conclusion
-7. Ensure the final response is comprehensive and addresses all aspects of the original prompt
+3. When you encounter score values from multiple models, calculate the average score and round to 1 decimal place
+4. Synthesize the best elements from each response
+5. Create a single, coherent response that represents the collective intelligence
+6. Maintain the same format and structure as expected from the original prompt
+7. If there are conflicting viewpoints, use your judgment to determine the most reasonable conclusion
+8. Ensure the final response is comprehensive and addresses all aspects of the original prompt
 
 Provide your synthesized response:`;
   }
+
+
 
   private createLangChainModel(
     model: ModelConfig,
@@ -656,14 +659,14 @@ IMPORTANT: You MUST respond with valid JSON that matches the required schema for
     maxRetries: number = 3
   ): Promise<T> {
     let lastError: Error | null = null;
-    
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const isRetry = attempt > 0;
-        const prompt = isRetry 
+        const prompt = isRetry
           ? this.addRetryInstructions(originalPrompt)
           : originalPrompt;
-        
+
         if (isRetry) {
           console.log(`[AgentExecutor] Retrying structured output (attempt ${attempt + 1}/${maxRetries})`, {
             executionId,
@@ -672,10 +675,10 @@ IMPORTANT: You MUST respond with valid JSON that matches the required schema for
             previousError: lastError?.message,
           });
         }
-        
+
         const structuredModel = langchainModel.withStructuredOutput(schema);
         const result = await structuredModel.invoke([new HumanMessage(prompt)]);
-        
+
         if (isRetry) {
           console.log(`[AgentExecutor] Structured output retry succeeded`, {
             executionId,
@@ -683,11 +686,11 @@ IMPORTANT: You MUST respond with valid JSON that matches the required schema for
             successfulAttempt: attempt + 1,
           });
         }
-        
+
         return result as T;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         console.warn(`[AgentExecutor] Structured output attempt ${attempt + 1} failed`, {
           executionId,
           model: modelName,
@@ -696,14 +699,14 @@ IMPORTANT: You MUST respond with valid JSON that matches the required schema for
           error: lastError.message,
           willRetry: attempt < maxRetries - 1,
         });
-        
+
         // If this is the last attempt, we'll throw the error after the loop
         if (attempt === maxRetries - 1) {
           break;
         }
       }
     }
-    
+
     // All retries failed
     console.error(`[AgentExecutor] All structured output attempts failed`, {
       executionId,
@@ -711,7 +714,7 @@ IMPORTANT: You MUST respond with valid JSON that matches the required schema for
       totalAttempts: maxRetries,
       finalError: lastError?.message,
     });
-    
+
     throw new Error(
       `Structured output failed after ${maxRetries} attempts for ${modelName}: ${lastError?.message || 'Unknown error'}`
     );

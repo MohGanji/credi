@@ -41,14 +41,13 @@ test('StrengthsSectionSchema validation', async (t) => {
   const validStrengths = {
     'Source Citations': 'Frequently cites peer-reviewed studies and medical journals',
     'Balanced Perspective': 'Acknowledges limitations and uncertainties in health advice',
-    'Professional Credentials': 'Licensed nutritionist with 10+ years experience',
   };
 
   const result = StrengthsSectionSchema.safeParse(validStrengths);
   t.ok(result.success, 'Valid strengths should pass validation');
   
   if (result.success) {
-    t.equal(Object.keys(result.data).length, 3, 'Should preserve all strength categories');
+    t.equal(Object.keys(result.data).length, 2, 'Should preserve all strength categories');
     t.ok(result.data['Source Citations'], 'Should preserve source citations strength');
   }
 
@@ -62,14 +61,16 @@ test('CriteriaEvaluationSectionSchema validation', async (t) => {
   const validCriteria = [
     {
       criterion: 'Unnecessary Complexity',
-      status: 'pass' as const,
-      evaluation: 'Uses clear, accessible language when explaining health concepts',
+      score: 8.5,
+      status: 'strong' as const,
+      evaluation: 'Uses clear, accessible language when explaining health concepts. This demonstrates good communication practices.',
       examples: ['Explains metabolism in simple terms', 'Avoids medical jargon'],
     },
     {
       criterion: 'Lack of Sourcing',
-      status: 'warning' as const,
-      evaluation: 'Sometimes provides sources but not consistently',
+      score: 6.2,
+      status: 'adequate' as const,
+      evaluation: 'Sometimes provides sources but not consistently. There is room for improvement in citation practices.',
     },
   ];
 
@@ -78,7 +79,8 @@ test('CriteriaEvaluationSectionSchema validation', async (t) => {
   
   if (result.success) {
     t.equal(result.data.length, 2, 'Should preserve all criteria evaluations');
-    t.equal(result.data[0].status, 'pass', 'Should preserve status values');
+    t.equal(result.data[0].status, 'strong', 'Should preserve status values');
+    t.equal(result.data[0].score, 8.5, 'Should preserve score values');
     t.ok(result.data[0].examples, 'Should preserve examples when provided');
     t.notOk(result.data[1].examples, 'Should handle missing examples');
   }
@@ -87,6 +89,7 @@ test('CriteriaEvaluationSectionSchema validation', async (t) => {
   const invalidCriteria = [
     {
       criterion: 'Test Criterion',
+      score: 5.0,
       status: 'invalid-status',
       evaluation: 'Test evaluation',
     },
@@ -100,16 +103,12 @@ test('RepresentativePostsSectionSchema validation', async (t) => {
   const validPosts = [
     {
       category: 'Health Claim',
-      content: 'New study shows vitamin D deficiency linked to immune issues. Always consult your doctor before supplementing. Source: NEJM 2024',
-      timestamp: '2024-01-15 14:30',
-      url: 'https://twitter.com/user/status/123456789',
+      content: '[Jan 15, 2024][https://twitter.com/user/status/123456789]\nNew study shows vitamin D deficiency linked to immune issues. Always consult your doctor before supplementing. Source: NEJM 2024',
       reasoning: 'Demonstrates good sourcing practices and includes appropriate medical disclaimers',
     },
     {
       category: 'Personal Anecdote',
-      content: 'My personal experience with intermittent fasting - results may vary for everyone!',
-      timestamp: 'Jan 10, 2024',
-      url: 'https://twitter.com/user/status/123456790',
+      content: '[Jan 10, 2024][]\nMy personal experience with intermittent fasting - results may vary for everyone!',
       reasoning: 'Shows appropriate caveats about personal experiences not being universal',
     },
   ];
@@ -128,7 +127,7 @@ test('RepresentativePostsSectionSchema validation', async (t) => {
     {
       category: 'Health Claim',
       content: 'Some content',
-      // Missing timestamp, url, and reasoning
+      // Missing reasoning
     },
   ];
 
@@ -187,22 +186,22 @@ test('Complete CredibilityAnalysisResultSchema validation', async (t) => {
     criteriaEvaluation: [
       {
         criterion: 'Unnecessary Complexity',
-        status: 'pass',
-        evaluation: 'Explains complex topics in accessible language',
+        score: 8.0,
+        status: 'strong',
+        evaluation: 'Explains complex topics in accessible language with clear examples',
         examples: ['Breaks down metabolism concepts clearly'],
       },
       {
         criterion: 'Lack of Sourcing',
-        status: 'warning',
-        evaluation: 'Usually provides sources but not always',
+        score: 6.5,
+        status: 'adequate',
+        evaluation: 'Usually provides sources but not always. Could improve consistency in citation practices.',
       },
     ],
     representativePosts: [
       {
         category: 'Educational Content',
-        content: 'Here\'s what the latest research says about protein timing...',
-        timestamp: '2024-01-10 09:15',
-        url: 'https://twitter.com/user/status/123',
+        content: '[Jan 10, 2024][https://twitter.com/user/status/123]\nHere\'s what the latest research says about protein timing...',
         reasoning: 'Demonstrates evidence-based approach to nutrition advice',
       },
     ],
@@ -317,16 +316,15 @@ test('Type inference works correctly', async (t) => {
     criteriaEvaluation: [
       {
         criterion: 'Lack of Sourcing',
-        status: 'pass',
-        evaluation: 'Consistently provides high-quality sources',
+        score: 9.2,
+        status: 'exemplary',
+        evaluation: 'Consistently provides high-quality sources and sets a positive example for evidence-based communication',
       },
     ],
     representativePosts: [
       {
         category: 'Research Summary',
-        content: 'New meta-analysis shows...',
-        timestamp: '2024-01-12 16:45',
-        url: 'https://twitter.com/user/status/456',
+        content: '[Jan 12, 2024][https://twitter.com/user/status/456]\nNew meta-analysis shows...',
         reasoning: 'Exemplifies evidence-based communication style',
       },
     ],

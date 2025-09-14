@@ -39,20 +39,25 @@ export const StrengthsSectionSchema = z.object({
     .describe("Professional, respectful communication that builds understanding"),
 }).describe("Positive credibility indicators found in the profile, with specific examples of how each strength manifests in the content");
 
-// Individual criteria evaluation schema
+// Individual criteria evaluation schema with scoring and respectful status levels
 export const CriteriaEvaluationItemSchema = z.object({
   criterion: z.string()
     .describe("Name of the specific credibility criterion being evaluated (e.g., 'Unnecessary Complexity', 'Lack of Sourcing', 'Guru Syndrome')"),
   
-  status: z.enum(['pass', 'warning', 'fail'])
-    .describe("Evaluation result: 'pass' means the profile performs well on this criterion, 'warning' indicates some concerns, 'fail' means significant issues were found"),
+  score: z.number()
+    .min(0)
+    .max(10)
+    .describe("Numerical score from 0-10 for this specific criterion, where 0 represents significant issues and 10 represents exemplary performance"),
+  
+  status: z.enum(['exemplary', 'strong', 'adequate', 'weak', 'concerning', 'deceptive'])
+    .describe("Respectful status classification: 'exemplary' (9.0-10.0) sets positive example, 'strong' (7.0-8.9) demonstrates good practices, 'adequate' (5.0-6.9) meets basic standards, 'weak' (3.0-4.9) shows concerning patterns, 'concerning' (1.5-2.9) exhibits patterns impacting credibility, 'deceptive' (0.0-1.4) contains misleading content"),
   
   evaluation: z.string()
-    .describe("Detailed explanation of the evaluation, including specific reasoning for the assigned status and how the profile's content demonstrates this criterion"),
+    .describe("Detailed explanation that is first informative, then constructive and educational. Focus on awareness and improvement opportunities rather than purely judgmental language. Recognize positive examples when appropriate."),
   
   examples: z.array(z.string()).optional()
     .describe("Optional array of specific examples from the profile's content that illustrate this criterion (e.g., specific post excerpts, patterns observed)")
-}).describe("Evaluation of a single credibility criterion with detailed reasoning and evidence");
+}).describe("Evaluation of a single credibility criterion with numerical scoring, respectful status classification, and constructive feedback");
 
 // Criteria evaluation section schema (array of evaluations)
 export const CriteriaEvaluationSectionSchema = z.array(CriteriaEvaluationItemSchema)
@@ -91,7 +96,7 @@ export const CredibilityAnalysisResultSchema = z.object({
   crediScore: z.number()
     .min(0)
     .max(10)
-    .describe("Overall credibility score from 0-10, where 0 represents completely unreliable content with serious credibility issues, 5 represents average credibility with mixed signals, and 10 represents highly credible content with excellent sourcing and balanced perspectives"),
+    .describe("Overall credibility score from 0-10 calculated as a weighted average of individual criterion scores, displayed with precision of at most one decimal point (e.g., 8.1). 0 represents completely unreliable content, 5 represents average credibility, and 10 represents highly credible content"),
   
   overview: OverviewSectionSchema,
   
@@ -115,6 +120,64 @@ export const ScoringResultSchema = z.object({
     .describe("Detailed explanation of how the score was calculated and what factors influenced it")
 }).describe("Scoring result with numerical score and detailed reasoning");
 
+// Scoring weights interface for weighted average calculation
+export interface ScoringWeights {
+  unnecessaryComplexity: number;
+  proprietarySelling: number;
+  usVsThemFraming: number;
+  overselling: number;
+  emotionOverData: number;
+  lackOfSourcing: number;
+  serialContrarian: number;
+  guruSyndrome: number;
+}
+
+// Default equal weighting (can be adjusted based on importance)
+export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
+  unnecessaryComplexity: 1.0,
+  proprietarySelling: 1.0,
+  usVsThemFraming: 1.0,
+  overselling: 1.0,
+  emotionOverData: 1.0,
+  lackOfSourcing: 1.0,
+  serialContrarian: 1.0,
+  guruSyndrome: 1.0,
+};
+
+// Status level mapping for respectful classifications
+export const STATUS_LEVELS = {
+  exemplary: {
+    label: 'Exemplary',
+    description: 'Sets a positive example for others to follow',
+    scoreRange: [9.0, 10.0] as const,
+  },
+  strong: {
+    label: 'Strong',
+    description: 'Demonstrates good practices with minor areas for enhancement',
+    scoreRange: [7.0, 8.9] as const,
+  },
+  adequate: {
+    label: 'Adequate',
+    description: 'Meets basic standards with room for improvement',
+    scoreRange: [5.0, 6.9] as const,
+  },
+  weak: {
+    label: 'Weak',
+    description: 'Shows some concerning patterns that could be addressed',
+    scoreRange: [3.0, 4.9] as const,
+  },
+  concerning: {
+    label: 'Concerning',
+    description: 'Exhibits patterns that may impact credibility significantly',
+    scoreRange: [1.5, 2.9] as const,
+  },
+  deceptive: {
+    label: 'Deceptive',
+    description: 'Contains misleading or deceptive content patterns',
+    scoreRange: [0.0, 1.4] as const,
+  },
+} as const;
+
 // Type inference for TypeScript usage
 export type CredibilityAnalysisResult = z.infer<typeof CredibilityAnalysisResultSchema>;
 export type ScoringResult = z.infer<typeof ScoringResultSchema>;
@@ -125,6 +188,84 @@ export type CriteriaEvaluationItem = z.infer<typeof CriteriaEvaluationItemSchema
 export type RepresentativePostsSection = z.infer<typeof RepresentativePostsSectionSchema>;
 export type RepresentativePost = z.infer<typeof RepresentativePostSchema>;
 export type ScoreJustificationSection = z.infer<typeof ScoreJustificationSectionSchema>;
+
+/**
+ * Calculate weighted average score from individual criterion scores
+ */
+export function calculateWeightedScore(
+  criterionScores: CriteriaEvaluationItem[],
+  weights: ScoringWeights = DEFAULT_SCORING_WEIGHTS
+): number {
+  if (criterionScores.length === 0) {
+    return 0;
+  }
+
+  let totalWeightedScore = 0;
+  let totalWeight = 0;
+
+  criterionScores.forEach((criterion) => {
+    // Map criterion names to weight keys (normalize naming)
+    const weightKey = normalizeWeightKey(criterion.criterion);
+    const weight = weights[weightKey as keyof ScoringWeights] || 1.0;
+    
+    // Clamp score to valid range
+    const clampedScore = Math.max(0, Math.min(10, criterion.score));
+    
+    totalWeightedScore += clampedScore * weight;
+    totalWeight += weight;
+  });
+
+  if (totalWeight === 0) {
+    return 0;
+  }
+
+  const finalScore = totalWeightedScore / totalWeight;
+  // Round to one decimal precision
+  return Math.round(finalScore * 10) / 10;
+}
+
+/**
+ * Normalize criterion names to match weight keys
+ */
+function normalizeWeightKey(criterionName: string): string {
+  const normalized = criterionName.toLowerCase().replace(/[^a-z]/g, '');
+  
+  // Map common criterion name variations to weight keys
+  const mappings: Record<string, string> = {
+    'unnecessarycomplexity': 'unnecessaryComplexity',
+    'proprietarypushyselling': 'proprietarySelling',
+    'proprietaryselling': 'proprietarySelling',
+    'usvsthemframing': 'usVsThemFraming',
+    'overselling': 'overselling',
+    'oversellingnarrowinterventions': 'overselling',
+    'emotionoverdata': 'emotionOverData',
+    'emotionstoryoverdata': 'emotionOverData',
+    'lackofsourcing': 'lackOfSourcing',
+    'serialcontrarian': 'serialContrarian',
+    'gurusyndrome': 'guruSyndrome',
+  };
+
+  return mappings[normalized] || 'unnecessaryComplexity'; // fallback
+}
+
+/**
+ * Determine status level based on score
+ */
+export function getStatusFromScore(score: number): keyof typeof STATUS_LEVELS {
+  const clampedScore = Math.max(0, Math.min(10, score));
+  
+  for (const [status, config] of Object.entries(STATUS_LEVELS)) {
+    const [min, max] = config.scoreRange;
+    if (clampedScore >= min && clampedScore <= max) {
+      return status as keyof typeof STATUS_LEVELS;
+    }
+  }
+  
+  // Fallback
+  return 'adequate';
+}
+
+
 
 // Example usage demonstrating proper schema documentation patterns
 export const ExampleUsage = {
