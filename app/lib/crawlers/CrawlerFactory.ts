@@ -145,39 +145,63 @@ export class CrawlerFactory {
       hasLinkedInActorId: !!process.env.APIFY_LINKEDIN_ACTOR_ID,
     });
     
+    // Detect platform first to avoid initializing unnecessary crawlers
+    const platform = this.detectPlatform(url);
+    if (!platform) {
+      logger.debug('CrawlerFactory: No suitable crawler found', { url });
+      return null;
+    }
+
     if (useRealCrawlers) {
       // Use real crawlers (which internally fall back to mock if needed)
-      const twitterCrawler = this.getOrCreateCrawler('twitter', TwitterCrawler);
-      const linkedinCrawler = this.getOrCreateCrawler('linkedin', LinkedInCrawler);
-
-      // Check which crawler can handle this URL
-      if ((twitterCrawler as any).validateUrl(url)) {
+      if (platform === 'twitter') {
         logger.debug('CrawlerFactory: Selected Twitter crawler (real)', { url });
-        return twitterCrawler;
+        return this.getOrCreateCrawler('twitter', TwitterCrawler);
       }
 
-      if ((linkedinCrawler as any).validateUrl(url)) {
+      if (platform === 'linkedin') {
         logger.debug('CrawlerFactory: Selected LinkedIn crawler (real)', { url });
-        return linkedinCrawler;
+        return this.getOrCreateCrawler('linkedin', LinkedInCrawler);
       }
     } else {
       // Use mock crawlers directly
-      const twitterMockCrawler = this.getOrCreateMockCrawler('twitter', TwitterCrawlerMock);
-      const linkedinMockCrawler = this.getOrCreateMockCrawler('linkedin', LinkedInCrawlerMock);
-
-      // Check which crawler can handle this URL
-      if ((twitterMockCrawler as any).validateUrl(url)) {
+      if (platform === 'twitter') {
         logger.debug('CrawlerFactory: Selected Twitter crawler (mock)', { url });
-        return twitterMockCrawler;
+        return this.getOrCreateMockCrawler('twitter', TwitterCrawlerMock);
       }
 
-      if ((linkedinMockCrawler as any).validateUrl(url)) {
+      if (platform === 'linkedin') {
         logger.debug('CrawlerFactory: Selected LinkedIn crawler (mock)', { url });
-        return linkedinMockCrawler;
+        return this.getOrCreateMockCrawler('linkedin', LinkedInCrawlerMock);
       }
     }
 
     logger.debug('CrawlerFactory: No suitable crawler found', { url });
+    return null;
+  }
+
+  /**
+   * Detect platform from URL without creating crawlers
+   */
+  private static detectPlatform(url: string): string | null {
+    const normalizedUrl = url.toLowerCase();
+    
+    // Twitter/X detection
+    if (normalizedUrl.includes('twitter.com') || normalizedUrl.includes('x.com')) {
+      const twitterPattern = /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/?$/;
+      if (twitterPattern.test(url)) {
+        return 'twitter';
+      }
+    }
+    
+    // LinkedIn detection
+    if (normalizedUrl.includes('linkedin.com')) {
+      const linkedinPattern = /^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+\/?$/;
+      if (linkedinPattern.test(url)) {
+        return 'linkedin';
+      }
+    }
+    
     return null;
   }
 

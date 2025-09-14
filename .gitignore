@@ -112,3 +112,4 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+.kiro/scratchpad

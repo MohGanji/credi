@@ -585,15 +585,20 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
 
     const finalResult = {
       profileUrl: '', // Will be set by caller
-      platform: this.detectPlatform(profileInfo.username || ''),
+      platform: profileInfo.platform || 'unknown',
       username: profileInfo.username || 'unknown',
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      requestedBy: null,
+      postsId: null,
+      state: 'COMPLETED',
+      errorMessage: null,
+      retryCount: 0,
+      lastRetryAt: null,
       crediScore: structuredResult.crediScore,
       sections,
       processingTimeMs: metadata.processingTimeMs,
       modelUsed: metadata.modelUsed,
       tokensUsed: metadata.tokensUsed,
-      requestedBy: null,
       analysisPrompt: null, // Will be set by caller
       scoringPrompt: null, // Will be set by caller if used
     };
@@ -618,9 +623,15 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
   ): Omit<Analysis, 'id' | 'createdAt'> {
     return {
       profileUrl: '',
-      platform: this.detectPlatform(profileInfo.username || ''),
+      platform: profileInfo.platform || 'unknown',
       username: profileInfo.username || 'unknown',
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      requestedBy: null,
+      postsId: null,
+      state: 'COMPLETED',
+      errorMessage: null,
+      retryCount: 0,
+      lastRetryAt: null,
       crediScore: 7.5,
       sections: [
         {
@@ -629,7 +640,7 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
             'Sampled Posts': '10',
             'Focus Areas': 'Content Quality, Source Citations',
             'Analysis Date': new Date().toISOString(),
-            Platform: this.detectPlatform(profileInfo.username || ''),
+            Platform: profileInfo.platform || 'unknown',
             'Profile Status': 'Active',
           },
         },
@@ -637,17 +648,12 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
       processingTimeMs: 1500,
       modelUsed: 'mock-model',
       tokensUsed: 2500,
-      requestedBy: null,
       analysisPrompt: null, // Will be set by caller
       scoringPrompt: null, // Will be set by caller if used
     };
   }
 
-  private detectPlatform(username: string): string {
-    if (username.includes('@')) return 'twitter';
-    if (username.includes('linkedin')) return 'linkedin';
-    return 'unknown';
-  }
+
 
   /**
    * Check if the service is properly configured

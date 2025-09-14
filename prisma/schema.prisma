@@ -14,6 +14,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Posts {
+  id            String   @id @default(cuid())
+  profileUrl    String
+  platform      String
+  username      String
+  displayName   String?
+  bio           String?
+  verified      Boolean  @default(false)
+  followerCount Int?
+  posts         Json     // Array of post objects
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime
+  
+  // Relationship to analyses
+  analyses      Analysis[]
+  
+  @@index([profileUrl])
+  @@index([expiresAt])
+  @@map("posts")
+}
+
 model Analysis {
   id          String   @id @default(cuid())
   profileUrl  String   // Removed unique constraint - multiple analyses per profile allowed
@@ -22,6 +43,16 @@ model Analysis {
   createdAt   DateTime @default(now())
   expiresAt   DateTime
   requestedBy String?  // Optional field for future use
+  
+  // Reference to posts
+  postsId     String?
+  posts       Posts?   @relation(fields: [postsId], references: [id])
+  
+  // State management
+  state       String   @default("COMPLETED") // CRAWLING, ANALYZING, COMPLETED, CRAWLING_FAILED, ANALYSIS_FAILED
+  errorMessage String?
+  retryCount  Int      @default(0)
+  lastRetryAt DateTime?
   
   // Core analysis data
   crediScore Float
@@ -36,5 +67,7 @@ model Analysis {
   analysisPrompt String? // The full prompt used for credibility analysis
   scoringPrompt  String? // The full prompt used for scoring
   
+  @@index([state])
+  @@index([profileUrl, state])
   @@map("analyses")
 }

@@ -8,6 +8,8 @@ export interface CreateAnalysisData {
   username: string;
   expiresAt: Date;
   requestedBy?: string; // Optional field for future use
+  postsId?: string; // Reference to posts
+  state?: string; // Analysis state
   crediScore: number;
   sections: AnalysisSection[];
   processingTimeMs?: number;
@@ -18,6 +20,11 @@ export interface CreateAnalysisData {
 }
 
 export interface UpdateAnalysisData {
+  postsId?: string;
+  state?: string;
+  errorMessage?: string;
+  retryCount?: number;
+  lastRetryAt?: Date;
   crediScore?: number;
   sections?: AnalysisSection[];
   processingTimeMs?: number;
@@ -41,8 +48,40 @@ export class AnalysisRepository {
         username: data.username,
         expiresAt: data.expiresAt,
         requestedBy: data.requestedBy,
+        postsId: data.postsId,
+        state: data.state || 'COMPLETED',
         crediScore: data.crediScore,
         sections: data.sections as unknown as Prisma.InputJsonValue,
+        processingTimeMs: data.processingTimeMs,
+        modelUsed: data.modelUsed,
+        tokensUsed: data.tokensUsed,
+        analysisPrompt: data.analysisPrompt,
+        scoringPrompt: data.scoringPrompt,
+      },
+    });
+  }
+
+  /**
+   * Create analysis with specific state
+   */
+  static async createWithState(
+    data: Omit<CreateAnalysisData, 'crediScore' | 'sections'> & {
+      crediScore?: number;
+      sections?: AnalysisSection[];
+    },
+    state: string
+  ): Promise<Analysis> {
+    return await prisma.analysis.create({
+      data: {
+        profileUrl: data.profileUrl,
+        platform: data.platform,
+        username: data.username,
+        expiresAt: data.expiresAt,
+        requestedBy: data.requestedBy,
+        postsId: data.postsId,
+        state,
+        crediScore: data.crediScore || 0,
+        sections: (data.sections || []) as unknown as Prisma.InputJsonValue,
         processingTimeMs: data.processingTimeMs,
         modelUsed: data.modelUsed,
         tokensUsed: data.tokensUsed,
@@ -102,6 +141,11 @@ export class AnalysisRepository {
         id,
       },
       data: {
+        postsId: data.postsId,
+        state: data.state,
+        errorMessage: data.errorMessage,
+        retryCount: data.retryCount,
+        lastRetryAt: data.lastRetryAt,
         crediScore: data.crediScore,
         sections: data.sections as unknown as Prisma.InputJsonValue,
         processingTimeMs: data.processingTimeMs,
@@ -111,6 +155,42 @@ export class AnalysisRepository {
         requestedBy: data.requestedBy,
         analysisPrompt: data.analysisPrompt,
         scoringPrompt: data.scoringPrompt,
+      },
+    });
+  }
+
+  /**
+   * Update analysis state
+   */
+  static async updateState(
+    id: string,
+    state: string,
+    errorMessage?: string
+  ): Promise<Analysis> {
+    return await prisma.analysis.update({
+      where: {
+        id,
+      },
+      data: {
+        state,
+        errorMessage,
+      },
+    });
+  }
+
+  /**
+   * Increment retry count
+   */
+  static async incrementRetryCount(id: string): Promise<Analysis> {
+    return await prisma.analysis.update({
+      where: {
+        id,
+      },
+      data: {
+        retryCount: {
+          increment: 1,
+        },
+        lastRetryAt: new Date(),
       },
     });
   }
@@ -163,6 +243,45 @@ export class AnalysisRepository {
         profileUrl,
         expiresAt: {
           gt: new Date(),
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  /**
+   * Find analyses by profile URL and state
+   */
+  static async findByProfileUrlAndState(
+    profileUrl: string,
+    states: string[]
+  ): Promise<Analysis[]> {
+    return await prisma.analysis.findMany({
+      where: {
+        profileUrl,
+        state: {
+          in: states,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  /**
+   * Find latest failed analysis for a profile URL
+   */
+  static async findLatestFailedByProfileUrl(
+    profileUrl: string
+  ): Promise<Analysis | null> {
+    return await prisma.analysis.findFirst({
+      where: {
+        profileUrl,
+        state: {
+          in: ['CRAWLING_FAILED', 'ANALYSIS_FAILED'],
         },
       },
       orderBy: {

@@ -70,15 +70,17 @@ export class LinkedInCrawler extends BaseCrawler {
       logger.info('Starting Apify actor run for LinkedIn profile', {
         sessionId,
         actorId,
+        profileUrl: url,
         username,
       });
 
       // Run the Apify actor to get profile data
       const startTime = Date.now();
       const run = await this.apifyClient.actor(actorId).call({
-        username: username,
-        page_number: 1,
-        limit: 1, // Just need profile info
+        urls: [url], // Use the full profile URL
+        limitPerSource: 1, // Just need profile info
+        deepScrape: true,
+        rawData: false,
       });
 
       logger.info('Apify actor run completed for LinkedIn profile', {
@@ -105,48 +107,40 @@ export class LinkedInCrawler extends BaseCrawler {
 
       const result = items[0] as any;
       
+      // Log the structure of the response for debugging
       logger.debug('LinkedIn profile data structure', {
         sessionId,
-        hasSuccess: !!result.success,
-        hasData: !!result.data,
-        hasPosts: !!(result.data && result.data.posts),
-        postCount: result.data?.posts?.length || 0,
         availableKeys: Object.keys(result),
+        hasAuthor: !!result.author,
+        hasUser: !!result.user,
+        hasProfile: !!result.profile,
+        sampleData: JSON.stringify(result).substring(0, 500),
       });
       
-      // Check if we got valid data
-      if (!result.success || !result.data || !result.data.posts || result.data.posts.length === 0) {
-        logger.warn('Invalid LinkedIn profile data structure', { 
+      // Try to find profile information in different possible locations
+      const profileData = result.author || result.user || result.profile || result;
+      if (!profileData) {
+        logger.warn('No profile information found in response', {
           sessionId,
-          success: result.success,
-          hasData: !!result.data,
-          hasPosts: !!(result.data && result.data.posts),
+          availableKeys: Object.keys(result),
         });
         throw new Error('Profile information not available');
       }
 
-      // Extract profile information from the first post's author data
-      const firstPost = result.data.posts[0];
-      const author = firstPost.author;
-      
-      if (!author) {
-        logger.warn('No author information in LinkedIn profile data', { 
-          sessionId,
-          firstPostKeys: Object.keys(firstPost),
-        });
-        throw new Error('Profile information not available');
-      }
+      // Extract author information from the profile data
+      // The new actor format may have different field names
+      const author = profileData;
 
       const profileResult = {
         platform: 'linkedin',
-        username: author.username || username,
-        displayName: `${author.first_name || ''} ${author.last_name || ''}`.trim() || username,
-        profileTitle: author.headline || `${author.first_name || ''} ${author.last_name || ''}`.trim(),
-        bio: author.headline || '',
+        username: author.username || author.publicIdentifier || username,
+        displayName: author.displayName || author.name || `${author.first_name || author.firstName || ''} ${author.last_name || author.lastName || ''}`.trim() || username,
+        profileTitle: author.headline || author.title || `${author.first_name || author.firstName || ''} ${author.last_name || author.lastName || ''}`.trim(),
+        bio: author.headline || author.bio || author.summary || '',
         isPublic: true,
-        profilePicture: author.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${author.first_name || ''} ${author.last_name || ''}`.trim() || username)}&background=0077b5&color=fff&size=128&bold=true`,
-        followerCount: 0, // LinkedIn API doesn't typically provide follower count
-        verified: false, // LinkedIn doesn't have verification badges
+        profilePicture: author.profile_picture || author.profilePicture || author.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(author.displayName || author.name || username)}&background=0077b5&color=fff&size=128&bold=true`,
+        followerCount: author.followersCount || author.followers_count || 0,
+        verified: author.verified || false,
         lastUpdated: new Date().toISOString(),
       };
 
@@ -166,9 +160,8 @@ export class LinkedInCrawler extends BaseCrawler {
         stack: error instanceof Error ? error.stack : undefined,
       });
       
-      logger.info('Falling back to mock data for LinkedIn profile', { sessionId });
-      // Fall back to mock data on error
-      return this.mockCrawler.fetchProfile(url);
+      // Re-throw the error instead of falling back to mock data
+      throw error;
     }
   }
 
@@ -202,16 +195,18 @@ export class LinkedInCrawler extends BaseCrawler {
       logger.info('Starting Apify actor run for LinkedIn posts', {
         sessionId,
         actorId,
+        profileUrl: url,
         username,
-        limit,
+        limitPerSource: limit,
       });
 
       // Run the Apify actor to get posts
       const startTime = Date.now();
       const run = await this.apifyClient.actor(actorId).call({
-        username: username,
-        page_number: 1,
-        limit,
+        urls: [url], // Use the full profile URL
+        limitPerSource: limit,
+        deepScrape: true,
+        rawData: false,
       });
 
       logger.info('Apify actor run completed for LinkedIn posts', {
@@ -229,6 +224,8 @@ export class LinkedInCrawler extends BaseCrawler {
         sessionId,
         itemCount: items?.length || 0,
         hasItems: !!(items && items.length > 0),
+        requestedCount: limit,
+        actualCount: items?.length || 0,
       });
       
       if (!items || items.length === 0) {
@@ -236,51 +233,59 @@ export class LinkedInCrawler extends BaseCrawler {
         throw new Error('No posts found or profile is private');
       }
 
+      // Log if we got fewer posts than requested
+      if (items.length < limit) {
+        logger.info('Received fewer posts than requested - this may be normal if the profile has limited recent posts', {
+          sessionId,
+          requested: limit,
+          received: items.length,
+          profileUrl: url,
+        });
+      }
+
       const result = items[0] as any;
       
+      // Log the structure of the first post for debugging
       logger.debug('LinkedIn posts data structure', {
         sessionId,
-        hasSuccess: !!result.success,
-        hasData: !!result.data,
-        hasPosts: !!(result.data && result.data.posts),
-        postCount: result.data?.posts?.length || 0,
         availableKeys: Object.keys(result),
+        isArray: Array.isArray(items),
+        samplePost: items.length > 0 ? JSON.stringify(items[0]).substring(0, 500) : 'No posts',
       });
       
-      // Check if we got valid data
-      if (!result.success || !result.data || !result.data.posts) {
-        logger.warn('Invalid LinkedIn posts data structure', { 
+      // The new actor returns posts directly in the items array
+      if (!items || items.length === 0) {
+        logger.warn('No posts found in LinkedIn response', { 
           sessionId,
-          success: result.success,
-          hasData: !!result.data,
-          hasPosts: !!(result.data && result.data.posts),
+          itemCount: items?.length || 0,
         });
         throw new Error('No posts found or profile is private');
       }
 
       // Convert Apify results to our Post format
-      const posts: Post[] = result.data.posts.map((item: any, index: number) => {
+      const posts: Post[] = items.map((item: any, index: number) => {
+        const postAuthor = item.author || item.user || { username: username };
         const post = {
-          id: item.urn || item.full_urn || `post_${Date.now()}_${Math.random()}`,
-          content: item.text || '',
-          createdAt: item.posted_at?.timestamp ? new Date(item.posted_at.timestamp).toISOString() : new Date().toISOString(),
+          id: item.urn || item.id || item.postId || item.activityId || `post_${Date.now()}_${Math.random()}`,
+          content: item.text || item.content || item.commentary || '',
+          createdAt: item.posted_at?.timestamp || item.createdAt || item.publishedAt ? new Date(item.posted_at?.timestamp || item.createdAt || item.publishedAt).toISOString() : new Date().toISOString(),
           author: {
-            username: item.author?.username || username,
-            displayName: `${item.author?.first_name || ''} ${item.author?.last_name || ''}`.trim() || item.author?.username || 'Unknown User',
+            username: postAuthor.username || postAuthor.publicIdentifier || username,
+            displayName: postAuthor.displayName || postAuthor.name || `${postAuthor.first_name || postAuthor.firstName || ''} ${postAuthor.last_name || postAuthor.lastName || ''}`.trim() || postAuthor.username || 'Unknown User',
           },
           metrics: {
-            likes: item.stats?.like || 0,
-            shares: item.stats?.reposts || 0,
-            comments: item.stats?.comments || 0,
-            views: 0, // LinkedIn doesn't typically provide view counts
+            likes: item.stats?.like || item.likes || item.numLikes || 0,
+            shares: item.stats?.reposts || item.shares || item.numShares || 0,
+            comments: item.stats?.comments || item.comments || item.numComments || 0,
+            views: item.views || item.numViews || 0,
           },
-          url: item.url || `https://linkedin.com/posts/${username}_${item.urn}`,
-          isRetweet: item.post_type === 'repost' || false,
-          originalPost: item.post_type === 'repost' ? {
-            id: item.original_post_id || 'unknown',
+          url: item.url || item.postUrl || `https://linkedin.com/posts/${username}_${item.urn || item.id}`,
+          isRetweet: item.post_type === 'repost' || item.isRepost || false,
+          originalPost: (item.post_type === 'repost' || item.isRepost) ? {
+            id: item.original_post_id || item.originalPostId || 'unknown',
             author: {
-              username: item.original_author?.username || 'unknown',
-              displayName: `${item.original_author?.first_name || ''} ${item.original_author?.last_name || ''}`.trim() || 'Unknown User',
+              username: item.original_author?.username || item.originalAuthor?.username || 'unknown',
+              displayName: item.original_author?.displayName || item.originalAuthor?.name || `${item.original_author?.first_name || ''} ${item.original_author?.last_name || ''}`.trim() || 'Unknown User',
             },
           } : undefined,
         };
@@ -316,9 +321,8 @@ export class LinkedInCrawler extends BaseCrawler {
         stack: error instanceof Error ? error.stack : undefined,
       });
       
-      logger.info('Falling back to mock data for LinkedIn posts', { sessionId });
-      // Fall back to mock data on error
-      return this.mockCrawler.fetchRecentPosts(url, maxCount);
+      // Re-throw the error instead of falling back to mock data
+      throw error;
     }
   }
 

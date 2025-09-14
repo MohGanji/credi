@@ -67,17 +67,24 @@ export class TwitterCrawler extends BaseCrawler {
         throw new Error('APIFY_TWITTER_ACTOR_ID not configured');
       }
 
+      // Extract username for the new actor format
+      const username = this.extractUsername(url);
+
       logger.info('Starting Apify actor run for Twitter profile', {
         sessionId,
         actorId,
         profileUrl: url,
+        from: username,
+        maxItems: 1,
+        queryType: 'Latest',
       });
 
       // Run the Apify actor to get profile data
       const startTime = Date.now();
       const run = await this.apifyClient.actor(actorId).call({
-        profileUrls: [url],
-        resultsLimit: 1, // Just need profile info
+        from: username,
+        maxItems: 1, // Just need profile info
+        queryType: 'Latest',
       });
 
       logger.info('Apify actor run completed for Twitter profile', {
@@ -103,9 +110,19 @@ export class TwitterCrawler extends BaseCrawler {
       }
 
       const profileData = items[0] as any;
+      
+      // Log the structure of the response for debugging
+      logger.debug('Twitter profile data structure', {
+        sessionId,
+        availableKeys: Object.keys(profileData),
+        hasAuthor: !!profileData.author,
+        hasUser: !!profileData.user,
+        sampleData: JSON.stringify(profileData).substring(0, 500),
+      });
 
-      // Extract profile information from the first post's author data
-      const author = profileData.author;
+      // Extract profile information from the response
+      // Try different possible field names for author/user data
+      const author = profileData.author || profileData.user || profileData;
       if (!author) {
         logger.warn('No author information in profile data', {
           sessionId,
@@ -116,13 +133,13 @@ export class TwitterCrawler extends BaseCrawler {
 
       const result = {
         platform: 'twitter',
-        username: author.screenName || username,
-        displayName: author.name || username,
-        profileTitle: `${author.name || username} (@${author.screenName || username})`,
-        bio: author.description || '',
+        username: author.screenName || author.screen_name || author.username || username,
+        displayName: author.name || author.displayName || author.display_name || username,
+        profileTitle: `${author.name || author.displayName || username} (@${author.screenName || author.screen_name || author.username || username})`,
+        bio: author.description || author.bio || '',
         isPublic: true,
-        profilePicture: author.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || username)}&background=1da1f2&color=fff&size=128&bold=true`,
-        followerCount: author.followersCount || 0,
+        profilePicture: author.profileImageUrl || author.profile_image_url || author.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || username)}&background=1da1f2&color=fff&size=128&bold=true`,
+        followerCount: author.followersCount || author.followers_count || author.followerCount || 0,
         verified: author.verified || false,
         lastUpdated: new Date().toISOString(),
       };
@@ -144,9 +161,8 @@ export class TwitterCrawler extends BaseCrawler {
         stack: error instanceof Error ? error.stack : undefined,
       });
 
-      logger.info('Falling back to mock data for Twitter profile', { sessionId });
-      // Fall back to mock data on error
-      return this.mockCrawler.fetchProfile(url);
+      // Re-throw the error instead of falling back to mock data
+      throw error;
     }
   }
 
@@ -177,18 +193,24 @@ export class TwitterCrawler extends BaseCrawler {
 
       const resultsLimit = Math.min(maxCount, 100); // Apify actor limit
 
+      // Extract username for the new actor format
+      const username = this.extractUsername(url);
+
       logger.info('Starting Apify actor run for Twitter posts', {
         sessionId,
         actorId,
         profileUrl: url,
-        resultsLimit,
+        from: username,
+        maxItems: resultsLimit,
+        queryType: 'Latest',
       });
 
       // Run the Apify actor to get posts
       const startTime = Date.now();
       const run = await this.apifyClient.actor(actorId).call({
-        profileUrls: [url],
-        resultsLimit,
+        from: username,
+        maxItems: resultsLimit,
+        queryType: 'Latest',
       });
 
       logger.info('Apify actor run completed for Twitter posts', {
@@ -206,6 +228,8 @@ export class TwitterCrawler extends BaseCrawler {
         sessionId,
         itemCount: items?.length || 0,
         hasItems: !!(items && items.length > 0),
+        requestedCount: resultsLimit,
+        actualCount: items?.length || 0,
       });
 
       if (!items || items.length === 0) {
@@ -213,29 +237,51 @@ export class TwitterCrawler extends BaseCrawler {
         throw new Error('No posts found or profile is private');
       }
 
+      // Log the structure of the first post for debugging
+      if (items.length > 0) {
+        logger.debug('Twitter posts data structure', {
+          sessionId,
+          firstPostKeys: Object.keys(items[0]),
+          hasAuthor: !!items[0].author,
+          hasUser: !!items[0].user,
+          samplePost: JSON.stringify(items[0]).substring(0, 500),
+        });
+      }
+
+      // Log if we got fewer posts than requested
+      if (items.length < resultsLimit) {
+        logger.info('Received fewer posts than requested - this may be normal if the profile has limited recent posts', {
+          sessionId,
+          requested: resultsLimit,
+          received: items.length,
+          profileUrl: url,
+        });
+      }
+
       // Convert Apify results to our Post format
       const posts: Post[] = items.map((item: any, index: number) => {
+        const postAuthor = item.author || item.user || { screenName: username, name: username };
         const post = {
-          id: item.postId || item.conversationId || `post_${Date.now()}_${Math.random()}`,
-          content: item.postText || item.text || '',
-          createdAt: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+          id: item.postId || item.id || item.conversationId || item.id_str || `post_${Date.now()}_${Math.random()}`,
+          content: item.postText || item.text || item.full_text || item.content || '',
+          createdAt: item.timestamp || item.created_at ? new Date(item.timestamp || item.created_at).toISOString() : new Date().toISOString(),
           author: {
-            username: item.author?.screenName || username,
-            displayName: item.author?.name || item.author?.screenName || 'Unknown User',
+            username: postAuthor.screenName || postAuthor.screen_name || postAuthor.username || username,
+            displayName: postAuthor.name || postAuthor.displayName || postAuthor.display_name || postAuthor.screenName || 'Unknown User',
           },
           metrics: {
-            likes: item.favouriteCount || item.likeCount || 0,
-            shares: item.repostCount || item.retweetCount || 0,
-            comments: item.replyCount || 0,
-            views: item.viewCount || 0,
+            likes: item.favouriteCount || item.likeCount || item.favorite_count || item.like_count || 0,
+            shares: item.repostCount || item.retweetCount || item.retweet_count || item.quote_count || 0,
+            comments: item.replyCount || item.reply_count || 0,
+            views: item.viewCount || item.view_count || 0,
           },
-          url: item.postUrl || `https://x.com/${item.author?.screenName}/status/${item.postId}`,
-          isRetweet: item.isRetweet || false,
-          originalPost: item.isRetweet ? {
-            id: item.originalPostId || 'unknown',
+          url: item.postUrl || item.url || `https://x.com/${postAuthor.screenName || postAuthor.screen_name || username}/status/${item.postId || item.id || item.id_str}`,
+          isRetweet: item.isRetweet || item.is_retweet || false,
+          originalPost: (item.isRetweet || item.is_retweet) ? {
+            id: item.originalPostId || item.retweeted_status?.id_str || 'unknown',
             author: {
-              username: item.originalAuthor?.screenName || 'unknown',
-              displayName: item.originalAuthor?.name || 'Unknown User',
+              username: item.originalAuthor?.screenName || item.retweeted_status?.user?.screen_name || 'unknown',
+              displayName: item.originalAuthor?.name || item.retweeted_status?.user?.name || 'Unknown User',
             },
           } : undefined,
         };
@@ -271,9 +317,8 @@ export class TwitterCrawler extends BaseCrawler {
         stack: error instanceof Error ? error.stack : undefined,
       });
 
-      logger.info('Falling back to mock data for Twitter posts', { sessionId });
-      // Fall back to mock data on error
-      return this.mockCrawler.fetchRecentPosts(url, maxCount);
+      // Re-throw the error instead of falling back to mock data
+      throw error;
     }
   }
 
