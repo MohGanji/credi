@@ -64,17 +64,11 @@ export const RepresentativePostSchema = z.object({
     .describe("Category or type of post this represents (e.g., 'Health Claim', 'Personal Anecdote', 'Product Promotion', 'Educational Content')"),
   
   content: z.string()
-    .describe("The actual text content of the post, quoted exactly as it appeared on the platform"),
-  
-  timestamp: z.string()
-    .describe("When the post was published, in a readable format (e.g., '2024-01-15 14:30' or 'Jan 15, 2024')"),
-  
-  url: z.string()
-    .describe("Direct URL link to the original post on the social media platform, if available"),
+    .describe("Formatted content starting with [timestamp][url] on the first line, followed by the actual post text on subsequent lines. Format: '[Jan 15, 2024][https://platform.com/post/123]\\nActual post content here...' If URL is not available, use empty brackets: '[Jan 15, 2024][]\\nPost content...'"),
   
   reasoning: z.string()
     .describe("Detailed explanation of why this post was selected as representative, what credibility patterns it demonstrates, and how it relates to the overall analysis")
-}).describe("A specific post that exemplifies key credibility patterns found in the profile");
+}).describe("A specific post that exemplifies key credibility patterns found in the profile, with timestamp and URL embedded in the content field for better readability");
 
 // Representative posts section schema
 export const RepresentativePostsSectionSchema = z.array(RepresentativePostSchema)
