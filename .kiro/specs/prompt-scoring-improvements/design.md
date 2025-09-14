@@ -18,6 +18,7 @@ The improvements will be implemented across several components:
 ### 1. Criteria-Based Scoring System
 
 #### Individual Criterion Scoring
+
 ```typescript
 interface CriterionScore {
   criterion: string;
@@ -27,10 +28,17 @@ interface CriterionScore {
   examples?: string[];
 }
 
-type CriterionStatus = 'exemplary' | 'strong' | 'adequate' | 'weak' | 'concerning' | 'Deceptive';
+type CriterionStatus =
+  | 'exemplary'
+  | 'strong'
+  | 'adequate'
+  | 'weak'
+  | 'concerning'
+  | 'Deceptive';
 ```
 
 #### Weighted Average Calculation
+
 ```typescript
 interface ScoringWeights {
   unnecessaryComplexity: number;
@@ -52,63 +60,66 @@ const DEFAULT_WEIGHTS: ScoringWeights = {
   emotionOverData: 1.0,
   lackOfSourcing: 1.0,
   serialContrarian: 1.0,
-  guruSyndrome: 1.0
+  guruSyndrome: 1.0,
 };
 ```
 
 ### 2. Respectful Status System
 
 #### Status Level Mapping
+
 ```typescript
 const STATUS_LEVELS = {
   exemplary: {
     label: 'Exemplary',
     description: 'Sets a positive example for others to follow',
-    scoreRange: [9.0, 10.0]
+    scoreRange: [9.0, 10.0],
   },
   strong: {
     label: 'Strong',
     description: 'Demonstrates good practices with minor areas for enhancement',
-    scoreRange: [7.0, 8.9]
+    scoreRange: [7.0, 8.9],
   },
   adequate: {
     label: 'Adequate',
     description: 'Meets basic standards with room for improvement',
-    scoreRange: [5.0, 6.9]
+    scoreRange: [5.0, 6.9],
   },
   weak: {
     label: 'Weak',
     description: 'Shows some concerning patterns that could be addressed',
-    scoreRange: [3.0, 4.9]
+    scoreRange: [3.0, 4.9],
   },
   concerning: {
     label: 'Concerning',
     description: 'Exhibits patterns that may impact credibility significantly',
-    scoreRange: [1.5, 2.9]
+    scoreRange: [1.5, 2.9],
   },
   deceptive: {
     label: 'Deceptive',
     description: 'Contains misleading or deceptive content patterns',
-    scoreRange: [0.0, 1.4]
-  }
+    scoreRange: [0.0, 1.4],
+  },
 };
 ```
 
 ### 3. Tabular Overview Structure
 
 #### Overview Table Format
+
 ```typescript
 interface OverviewTable {
   'Sampled Posts': string; // e.g., "12 Posts"
-  'Focus Area': string;    // Description of main topics
+  'Focus Area': string; // Description of main topics
   'Analysis Date': string; // ISO timestamp
-  'Platform': string;      // e.g., "LinkedIn", "Twitter/X"
+  Platform: string; // e.g., "LinkedIn", "Twitter/X"
 }
 ```
 
 ### 4. Enhanced Sections Structure
 
 #### Updated Analysis Result Schema
+
 ```typescript
 interface EnhancedAnalysisResult {
   crediScore: number; // Calculated from weighted average
@@ -155,13 +166,13 @@ function calculateWeightedScore(
 ): number {
   let totalWeightedScore = 0;
   let totalWeight = 0;
-  
-  criterionScores.forEach(criterion => {
+
+  criterionScores.forEach((criterion) => {
     const weight = weights[criterion.criterion as keyof ScoringWeights];
     totalWeightedScore += criterion.score * weight;
     totalWeight += weight;
   });
-  
+
   const finalScore = totalWeightedScore / totalWeight;
   return Math.round(finalScore * 10) / 10; // One decimal precision
 }
@@ -170,11 +181,13 @@ function calculateWeightedScore(
 ## Error Handling
 
 ### Invalid Scores
+
 - If a criterion score is outside 0-10 range, clamp to valid range
 - If a criterion is not applicable, exclude from weighted average calculation
 - If all criteria are invalid, return a default score with appropriate messaging
 
 ### Missing Data
+
 - If individual criterion scores are missing, fall back to overall score estimation
 - If consensus data is incomplete, use available model scores for calculation
 - If no significant strengths are found, strengths section may be omitted
@@ -194,22 +207,26 @@ As per requirements, no automated testing will be implemented for these changes.
 ## Implementation Phases
 
 ### Phase 1: Schema and Data Structure Updates
+
 - Update `CredibilityAnalysisResultSchema` with new structures
 - Add criterion scoring interfaces
 - Implement weighted average calculation logic
 
 ### Phase 2: Prompt Template Enhancements
+
 - Update `.env` prompt templates with new instructions
 - Add respectful language guidelines
 - Implement tabular overview format requirements
 
 ### Phase 3: Service Layer Integration
+
 - Update `CredibilityAnalyzer` to handle new scoring methodology
 - Implement consensus score aggregation
 - Add weaknesses section generation aligned with criteria
 - Implement optional strengths/weaknesses sections based on content significance
 
 ### Phase 4: Output Formatting
+
 - Ensure proper section ordering
 - Implement table formatting for overview
 - Validate score precision and status mapping

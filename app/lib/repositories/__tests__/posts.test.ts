@@ -26,10 +26,18 @@ test('PostsRepository.create should create a new posts record', async (t) => {
   t.equal(posts.profileUrl, postsData.profileUrl, 'Profile URL should match');
   t.equal(posts.platform, postsData.platform, 'Platform should match');
   t.equal(posts.username, postsData.username, 'Username should match');
-  t.equal(posts.displayName, postsData.displayName, 'Display name should match');
+  t.equal(
+    posts.displayName,
+    postsData.displayName,
+    'Display name should match'
+  );
   t.equal(posts.bio, postsData.bio, 'Bio should match');
   t.equal(posts.verified, postsData.verified, 'Verified status should match');
-  t.equal(posts.followerCount, postsData.followerCount, 'Follower count should match');
+  t.equal(
+    posts.followerCount,
+    postsData.followerCount,
+    'Follower count should match'
+  );
   t.ok(Array.isArray(posts.posts), 'Posts should be an array');
   t.equal((posts.posts as any[]).length, 1, 'Should have one post');
   t.ok(posts.expiresAt > new Date(), 'Should have future expiration date');
@@ -44,7 +52,9 @@ test('PostsRepository.findValidPostsByProfileUrl should find valid posts', async
   };
 
   const createdPosts = await PostsRepository.create(postsData);
-  const foundPosts = await PostsRepository.findValidPostsByProfileUrl(postsData.profileUrl);
+  const foundPosts = await PostsRepository.findValidPostsByProfileUrl(
+    postsData.profileUrl
+  );
 
   t.ok(foundPosts, 'Posts should be found');
   t.equal(foundPosts?.id, createdPosts.id, 'Should return the created posts');
@@ -59,7 +69,7 @@ test('PostsRepository.findValidPostsByProfileUrl should return null for expired 
   };
 
   const createdPosts = await PostsRepository.create(postsData);
-  
+
   // Manually set expiration to past
   const { PrismaClient } = await import('../../../generated/prisma');
   const prisma = new PrismaClient();
@@ -68,7 +78,9 @@ test('PostsRepository.findValidPostsByProfileUrl should return null for expired 
     data: { expiresAt: new Date(Date.now() - 1000) }, // 1 second ago
   });
 
-  const foundPosts = await PostsRepository.findValidPostsByProfileUrl(postsData.profileUrl);
+  const foundPosts = await PostsRepository.findValidPostsByProfileUrl(
+    postsData.profileUrl
+  );
   t.equal(foundPosts, null, 'Should return null for expired posts');
 });
 
@@ -81,9 +93,13 @@ test('PostsRepository.isExpired should correctly identify expired posts', async 
   };
 
   const posts = await PostsRepository.create(postsData);
-  
-  t.equal(PostsRepository.isExpired(posts), false, 'New posts should not be expired');
-  
+
+  t.equal(
+    PostsRepository.isExpired(posts),
+    false,
+    'New posts should not be expired'
+  );
+
   // Create posts with past expiration
   const { PrismaClient } = await import('../../../generated/prisma');
   const prisma = new PrismaClient();
@@ -96,6 +112,10 @@ test('PostsRepository.isExpired should correctly identify expired posts', async 
       expiresAt: new Date(Date.now() - 1000), // 1 second ago
     },
   });
-  
-  t.equal(PostsRepository.isExpired(expiredPosts), true, 'Expired posts should be identified as expired');
+
+  t.equal(
+    PostsRepository.isExpired(expiredPosts),
+    true,
+    'Expired posts should be identified as expired'
+  );
 });

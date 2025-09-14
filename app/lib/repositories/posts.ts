@@ -18,7 +18,9 @@ export class PostsRepository {
   /**
    * Find valid (non-expired) posts by profile URL
    */
-  static async findValidPostsByProfileUrl(profileUrl: string): Promise<Posts | null> {
+  static async findValidPostsByProfileUrl(
+    profileUrl: string
+  ): Promise<Posts | null> {
     try {
       const posts = await prisma.posts.findFirst({
         where: {

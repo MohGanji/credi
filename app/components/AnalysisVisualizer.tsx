@@ -5,7 +5,6 @@ import { AnalysisSection } from '../lib/types/analysis';
 
 interface AnalysisVisualizerProps {
   sections: AnalysisSection[];
-  crediScore: number;
 }
 
 interface RenderDataProps {
@@ -13,31 +12,62 @@ interface RenderDataProps {
   depth?: number;
 }
 
+// Helper function to format strings with clickable links
+const formatStringWithLinks = (text: string): React.ReactNode => {
+  // Pattern to match [timestamp][url] or [timestamp][] at the beginning of a line
+  const urlPattern = /^(\[.*?\])(\[([^\]]*)\])/;
+  const match = text.match(urlPattern);
+
+  if (match) {
+    const [fullMatch, timestamp, , url] = match;
+    const remainingText = text.slice(fullMatch.length);
+
+    return (
+      <>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-gray-600 text-sm">{timestamp}</span>
+          {url && url.startsWith('http') ? (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+            >
+              Link
+            </a>
+          ) : (
+            <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-500 bg-gray-50 rounded-md">
+              No Link
+            </span>
+          )}
+        </div>
+        {remainingText && (
+          <div className="whitespace-pre-wrap">{remainingText}</div>
+        )}
+      </>
+    );
+  }
+
+  // For regular strings without the URL pattern, preserve line breaks
+  return <div className="whitespace-pre-wrap">{text}</div>;
+};
+
 export default function AnalysisVisualizer({
   sections,
-  crediScore,
 }: AnalysisVisualizerProps) {
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return 'text-green-600';
-    if (score >= 6) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getScoreBackground = (score: number) => {
-    if (score >= 8) return 'bg-green-100';
-    if (score >= 6) return 'bg-yellow-100';
-    return 'bg-red-100';
-  };
-
   const RenderData: React.FC<RenderDataProps> = ({ data, depth = 0 }) => {
     // Handle null or undefined
     if (data == null) {
       return null;
     }
 
-    // Handle strings - render as paragraphs
+    // Handle strings - render as paragraphs with URL formatting
     if (typeof data === 'string') {
-      return <p className="text-gray-700 leading-relaxed">{data}</p>;
+      return (
+        <div className="text-gray-700 leading-relaxed">
+          {formatStringWithLinks(data)}
+        </div>
+      );
     }
 
     // Handle numbers - render as text
@@ -165,31 +195,6 @@ export default function AnalysisVisualizer({
 
   return (
     <div className="space-y-6">
-      {/* Prominent Credi Score Display */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Credibility Analysis Results
-            </h2>
-            <p className="text-gray-600">
-              Based on comprehensive content evaluation
-            </p>
-          </div>
-          <div
-            className={`text-center p-6 rounded-xl ${getScoreBackground(crediScore)} border-2 border-opacity-20`}
-          >
-            <div className="text-sm font-medium text-gray-600 mb-1">
-              Credi Score
-            </div>
-            <div className={`text-4xl font-bold ${getScoreColor(crediScore)}`}>
-              {crediScore}
-              <span className="text-lg text-gray-500">/10</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Dynamic Section Rendering */}
       {sections.map((section, index) => (
         <div key={index} className="bg-white rounded-lg shadow-md p-6">

@@ -12,15 +12,21 @@ import { logger } from '../../lib/logger';
  */
 function getPlatformPostCount(platform: string): number {
   const defaultCount = parseInt(process.env.POSTS_TO_FETCH || '10', 10);
-  
+
   let count: number;
   switch (platform.toLowerCase()) {
     case 'twitter':
-      count = parseInt(process.env.TWITTER_POSTS_TO_FETCH || defaultCount.toString(), 10);
+      count = parseInt(
+        process.env.TWITTER_POSTS_TO_FETCH || defaultCount.toString(),
+        10
+      );
       // Twitter supports up to 200 posts with the new actor
       return Math.min(Math.max(count, 1), 200);
     case 'linkedin':
-      count = parseInt(process.env.LINKEDIN_POSTS_TO_FETCH || defaultCount.toString(), 10);
+      count = parseInt(
+        process.env.LINKEDIN_POSTS_TO_FETCH || defaultCount.toString(),
+        10
+      );
       // LinkedIn typically supports up to 100 posts
       return Math.min(Math.max(count, 1), 100);
     default:
@@ -84,27 +90,30 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing failed analysis to determine retry strategy
-    const failedAnalysis = await AnalysisRepository.findLatestFailedByProfileUrl(normalizedUrl);
-    
+    const failedAnalysis =
+      await AnalysisRepository.findLatestFailedByProfileUrl(normalizedUrl);
+
     // Check retry limits - max 3 attempts per analysis
     if (failedAnalysis && (failedAnalysis.retryCount || 0) >= 3) {
       logger.warn(`Maximum retry attempts reached for ${normalizedUrl}`, {
         analysisId: failedAnalysis.id,
         retryCount: failedAnalysis.retryCount,
       });
-      
+
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'Analysis failed after multiple attempts. Please try again later.',
-          details: 'Maximum retry limit reached. The profile may be temporarily unavailable.',
+          error:
+            'Analysis failed after multiple attempts. Please try again later.',
+          details:
+            'Maximum retry limit reached. The profile may be temporarily unavailable.',
           type: 'max_retries_exceeded',
-          retryable: false
+          retryable: false,
         },
         { status: 429 }
       );
     }
-    
+
     // Check if AI agent execution is enabled (when MOCK_AGENT_CALL is false)
     const useAIAgents = process.env.MOCK_AGENT_CALL !== 'true';
 
@@ -116,21 +125,28 @@ export async function POST(request: NextRequest) {
         // Step 1: Handle posts (crawling or reuse existing)
         let posts, profileInfo;
         let shouldRetryFromCrawling = false;
-        
+
         // Determine retry strategy based on failure state
         if (failedAnalysis) {
-          if (failedAnalysis.state === 'ANALYSIS_FAILED' && failedAnalysis.postsId) {
+          if (
+            failedAnalysis.state === 'ANALYSIS_FAILED' &&
+            failedAnalysis.postsId
+          ) {
             // Try to reuse existing posts for AI analysis retry
-            logger.info(`Attempting to reuse existing posts for retry analysis ${normalizedUrl}`, {
-              analysisId: failedAnalysis.id,
-              postsId: failedAnalysis.postsId,
-              retryCount: failedAnalysis.retryCount || 0,
-            });
-            
-            postsRecord = await PostsRepository.findValidPostsByProfileUrl(normalizedUrl);
+            logger.info(
+              `Attempting to reuse existing posts for retry analysis ${normalizedUrl}`,
+              {
+                analysisId: failedAnalysis.id,
+                postsId: failedAnalysis.postsId,
+                retryCount: failedAnalysis.retryCount || 0,
+              }
+            );
+
+            postsRecord =
+              await PostsRepository.findValidPostsByProfileUrl(normalizedUrl);
             if (postsRecord && !PostsRepository.isExpired(postsRecord)) {
               // Convert stored posts to format expected by CredibilityAnalyzer
-              posts = (postsRecord.posts as any[]).map(post => ({
+              posts = (postsRecord.posts as any[]).map((post) => ({
                 id: post.id,
                 content: post.content,
                 timestamp: post.timestamp,
@@ -146,19 +162,27 @@ export async function POST(request: NextRequest) {
                 verified: postsRecord.verified,
               };
 
-              logger.info(`Successfully reused existing posts for retry ${normalizedUrl}`, {
-                analysisId: failedAnalysis.id,
-                profileUsername: profileInfo.username,
-                postCount: posts.length,
-                verified: profileInfo.verified,
-              });
+              logger.info(
+                `Successfully reused existing posts for retry ${normalizedUrl}`,
+                {
+                  analysisId: failedAnalysis.id,
+                  profileUsername: profileInfo.username,
+                  postCount: posts.length,
+                  verified: profileInfo.verified,
+                }
+              );
             } else {
               // Posts expired or not found, need to re-crawl
               shouldRetryFromCrawling = true;
-              logger.info(`Posts expired or not found, will retry from crawling ${normalizedUrl}`, {
-                analysisId: failedAnalysis.id,
-                postsExpired: postsRecord ? PostsRepository.isExpired(postsRecord) : false,
-              });
+              logger.info(
+                `Posts expired or not found, will retry from crawling ${normalizedUrl}`,
+                {
+                  analysisId: failedAnalysis.id,
+                  postsExpired: postsRecord
+                    ? PostsRepository.isExpired(postsRecord)
+                    : false,
+                }
+              );
             }
           } else if (failedAnalysis.state === 'CRAWLING_FAILED') {
             // Retry from crawling step
@@ -176,35 +200,50 @@ export async function POST(request: NextRequest) {
             isRetry: !!failedAnalysis,
             retryFromCrawling: shouldRetryFromCrawling,
           });
-          
+
           // Create or update analysis record in CRAWLING state
           let analysis;
           if (failedAnalysis && shouldRetryFromCrawling) {
-            analysis = await AnalysisRepository.updateState(failedAnalysis.id, 'CRAWLING');
+            analysis = await AnalysisRepository.updateState(
+              failedAnalysis.id,
+              'CRAWLING'
+            );
             await AnalysisRepository.incrementRetryCount(failedAnalysis.id);
-            logger.info(`Updated analysis to CRAWLING state for retry ${normalizedUrl}`, {
-              analysisId: analysis.id,
-              retryCount: analysis.retryCount,
-            });
+            logger.info(
+              `Updated analysis to CRAWLING state for retry ${normalizedUrl}`,
+              {
+                analysisId: analysis.id,
+                retryCount: analysis.retryCount,
+              }
+            );
           }
-          
+
           try {
-            const profileData = await CrawlerFactory.fetchProfile(normalizedUrl);
-            
+            const profileData =
+              await CrawlerFactory.fetchProfile(normalizedUrl);
+
             // Get platform-specific post count
-            const postsToFetch = getPlatformPostCount(validationResult.platform);
-            logger.info(`Fetching ${postsToFetch} recent posts for ${normalizedUrl} (${validationResult.platform})`, {
-              platform: validationResult.platform,
-              postsToFetch,
-              twitterLimit: process.env.TWITTER_POSTS_TO_FETCH,
-              linkedinLimit: process.env.LINKEDIN_POSTS_TO_FETCH,
-              fallbackLimit: process.env.POSTS_TO_FETCH,
-              isRetry: !!failedAnalysis,
-            });
-            const postsData = await CrawlerFactory.fetchRecentPosts(normalizedUrl, postsToFetch);
+            const postsToFetch = getPlatformPostCount(
+              validationResult.platform
+            );
+            logger.info(
+              `Fetching ${postsToFetch} recent posts for ${normalizedUrl} (${validationResult.platform})`,
+              {
+                platform: validationResult.platform,
+                postsToFetch,
+                twitterLimit: process.env.TWITTER_POSTS_TO_FETCH,
+                linkedinLimit: process.env.LINKEDIN_POSTS_TO_FETCH,
+                fallbackLimit: process.env.POSTS_TO_FETCH,
+                isRetry: !!failedAnalysis,
+              }
+            );
+            const postsData = await CrawlerFactory.fetchRecentPosts(
+              normalizedUrl,
+              postsToFetch
+            );
 
             // Convert crawler data to format expected by CredibilityAnalyzer
-            posts = postsData.map(post => ({
+            posts = postsData.map((post) => ({
               id: post.id,
               content: post.content,
               timestamp: post.createdAt,
@@ -232,28 +271,36 @@ export async function POST(request: NextRequest) {
               posts: posts,
             });
 
-            logger.info(`Successfully fetched and stored new data for ${normalizedUrl}`, {
-              postsId: postsRecord.id,
-              profileUsername: profileInfo.username,
-              platform: validationResult.platform,
-              postCount: posts.length,
-              requestedPostCount: postsToFetch,
-              verified: profileInfo.verified,
-              isRetry: !!failedAnalysis,
-            });
+            logger.info(
+              `Successfully fetched and stored new data for ${normalizedUrl}`,
+              {
+                postsId: postsRecord.id,
+                profileUsername: profileInfo.username,
+                platform: validationResult.platform,
+                postCount: posts.length,
+                requestedPostCount: postsToFetch,
+                verified: profileInfo.verified,
+                isRetry: !!failedAnalysis,
+              }
+            );
 
             // Log if we got fewer posts than requested
             if (posts.length < postsToFetch) {
-              logger.info(`Received fewer posts than requested - this is normal if the profile has limited recent posts`, {
-                profileUrl: normalizedUrl,
-                requested: postsToFetch,
-                received: posts.length,
-              });
+              logger.info(
+                `Received fewer posts than requested - this is normal if the profile has limited recent posts`,
+                {
+                  profileUrl: normalizedUrl,
+                  requested: postsToFetch,
+                  received: posts.length,
+                }
+              );
             }
-
           } catch (crawlerError) {
             logger.error('Crawler failed', {
-              error: crawlerError instanceof Error ? crawlerError.message : 'Unknown crawler error',
+              error:
+                crawlerError instanceof Error
+                  ? crawlerError.message
+                  : 'Unknown crawler error',
               url: normalizedUrl,
               isRetry: !!failedAnalysis,
             });
@@ -261,19 +308,22 @@ export async function POST(request: NextRequest) {
             // Update analysis state to CRAWLING_FAILED if we have an analysis record
             if (failedAnalysis) {
               await AnalysisRepository.updateState(
-                failedAnalysis.id, 
-                'CRAWLING_FAILED', 
-                crawlerError instanceof Error ? crawlerError.message : 'Unknown crawler error'
+                failedAnalysis.id,
+                'CRAWLING_FAILED',
+                crawlerError instanceof Error
+                  ? crawlerError.message
+                  : 'Unknown crawler error'
               );
             }
 
             return NextResponse.json(
-              { 
+              {
                 success: false,
-                error: 'Failed to fetch profile data. Please check the URL and try again.',
+                error:
+                  'Failed to fetch profile data. Please check the URL and try again.',
                 details: 'Unable to access the social media profile.',
                 type: 'crawler_error',
-                retryable: true
+                retryable: true,
               },
               { status: 400 }
             );
@@ -282,25 +332,28 @@ export async function POST(request: NextRequest) {
 
         // Step 2: Create or update analysis record in ANALYZING state
         let analysis;
-        
+
         if (failedAnalysis) {
           // Update existing failed analysis for retry
           analysis = await AnalysisRepository.update(failedAnalysis.id, {
             state: 'ANALYZING',
             postsId: postsRecord?.id,
-            errorMessage: null, // Clear previous error
+            errorMessage: undefined, // Clear previous error
           });
-          
+
           // Only increment retry count if not already incremented during crawling retry
           if (!shouldRetryFromCrawling) {
             await AnalysisRepository.incrementRetryCount(failedAnalysis.id);
           }
-          
-          logger.info(`Updated existing analysis to ANALYZING state for retry ${normalizedUrl}`, {
-            analysisId: analysis.id,
-            retryCount: analysis.retryCount,
-            previousState: failedAnalysis.state,
-          });
+
+          logger.info(
+            `Updated existing analysis to ANALYZING state for retry ${normalizedUrl}`,
+            {
+              analysisId: analysis.id,
+              retryCount: analysis.retryCount,
+              previousState: failedAnalysis.state,
+            }
+          );
         } else {
           // Create new analysis
           const analysisData = {
@@ -312,11 +365,17 @@ export async function POST(request: NextRequest) {
             crediScore: 0,
             sections: [],
           };
-          
-          analysis = await AnalysisRepository.createWithState(analysisData, 'ANALYZING');
-          logger.info(`Created new analysis in ANALYZING state for ${normalizedUrl}`, {
-            analysisId: analysis.id,
-          });
+
+          analysis = await AnalysisRepository.createWithState(
+            analysisData,
+            'ANALYZING'
+          );
+          logger.info(
+            `Created new analysis in ANALYZING state for ${normalizedUrl}`,
+            {
+              analysisId: analysis.id,
+            }
+          );
         }
 
         // Step 3: Perform AI analysis
@@ -364,7 +423,6 @@ export async function POST(request: NextRequest) {
             status: 'started',
           },
         });
-
       } catch (error) {
         logger.error('AI agent analysis failed', {
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -374,27 +432,27 @@ export async function POST(request: NextRequest) {
         });
 
         // Update analysis state to failed
-        if (analysis) {
+        if (failedAnalysis) {
           await AnalysisRepository.updateState(
-            analysis.id, 
-            'ANALYSIS_FAILED', 
+            failedAnalysis.id,
+            'ANALYSIS_FAILED',
             error instanceof Error ? error.message : 'Unknown error'
           );
         }
 
-        const currentRetryCount = (failedAnalysis?.retryCount || 0) + (shouldRetryFromCrawling ? 0 : 1);
+        const currentRetryCount = (failedAnalysis?.retryCount || 0) + 1;
         const canRetry = currentRetryCount < 3;
 
         return NextResponse.json(
-          { 
+          {
             success: false,
-            error: canRetry 
-              ? 'Analysis failed. Please try again later.' 
+            error: canRetry
+              ? 'Analysis failed. Please try again later.'
               : 'Analysis failed after multiple attempts. Please try again later.',
             details: 'AI analysis service encountered an error.',
             type: 'analysis_error',
             retryable: canRetry,
-            retryCount: currentRetryCount
+            retryCount: currentRetryCount,
           },
           { status: 500 }
         );
@@ -446,8 +504,6 @@ export async function POST(request: NextRequest) {
         },
       });
     }
-
-
   } catch (error) {
     logger.error('Error creating analysis', {
       error: error instanceof Error ? error.message : 'Unknown error',

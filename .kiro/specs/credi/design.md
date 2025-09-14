@@ -281,28 +281,28 @@ class TwitterCrawler implements SocialMediaCrawler {
 
     // Initialize the ApifyClient with API token
     const client = new ApifyClient({
-        token: '<YOUR_API_TOKEN>',
+      token: '<YOUR_API_TOKEN>',
     });
 
     // Prepare Actor input
     const input = {
-        "profileUrls": [
-            "https://x.com/ishowspeedsui",
-            "https://x.com/AshtonHallofc"
-        ],
-        "resultsLimit": 30
+      profileUrls: [
+        'https://x.com/ishowspeedsui',
+        'https://x.com/AshtonHallofc',
+      ],
+      resultsLimit: 30,
     };
 
     (async () => {
-        // Run the Actor and wait for it to finish
-        const run = await client.actor("Fo9GoU5wC270BgcBr").call(input);
+      // Run the Actor and wait for it to finish
+      const run = await client.actor('Fo9GoU5wC270BgcBr').call(input);
 
-        // Fetch and print Actor results from the run's dataset (if any)
-        console.log('Results from dataset');
-        const { items } = await client.dataset(run.defaultDatasetId).listItems();
-        items.forEach((item) => {
-            console.dir(item);
-        });
+      // Fetch and print Actor results from the run's dataset (if any)
+      console.log('Results from dataset');
+      const { items } = await client.dataset(run.defaultDatasetId).listItems();
+      items.forEach((item) => {
+        console.dir(item);
+      });
     })();
     /*
 
@@ -356,34 +356,33 @@ class LinkedInCrawler implements SocialMediaCrawler {
   }
 
   async crawlPosts(profileUrl: string, limit: number): Promise<Post[]> {
+    import { ApifyClient } from 'apify-client';
+    // Use the Apify client below for Crawling linkedin posts
+    // Initialize the ApifyClient with API token
+    const client = new ApifyClient({
+      token: '<YOUR_API_TOKEN>',
+    });
 
-      import { ApifyClient } from 'apify-client';
-      // Use the Apify client below for Crawling linkedin posts
-      // Initialize the ApifyClient with API token
-      const client = new ApifyClient({
-          token: '<YOUR_API_TOKEN>',
+    // Prepare Actor input
+    const input = {
+      username: 'satyanadella',
+      page_number: 1,
+      limit: 100,
+    };
+
+    (async () => {
+      // Run the Actor and wait for it to finish
+      const run = await client.actor('LQQIXN9Othf8f7R5n').call(input);
+
+      // Fetch and print Actor results from the run's dataset (if any)
+      console.log('Results from dataset');
+      const { items } = await client.dataset(run.defaultDatasetId).listItems();
+      items.forEach((item) => {
+        console.dir(item);
       });
+    })();
 
-      // Prepare Actor input
-      const input = {
-          "username": "satyanadella",
-          "page_number": 1,
-          "limit": 100
-      };
-
-      (async () => {
-          // Run the Actor and wait for it to finish
-          const run = await client.actor("LQQIXN9Othf8f7R5n").call(input);
-
-          // Fetch and print Actor results from the run's dataset (if any)
-          console.log('Results from dataset');
-          const { items } = await client.dataset(run.defaultDatasetId).listItems();
-          items.forEach((item) => {
-              console.dir(item);
-          });
-      })();
-
-        /*
+    /*
         {
   "success": true,
   "message": "response retrieved successfully",

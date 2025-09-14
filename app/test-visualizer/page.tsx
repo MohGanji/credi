@@ -226,8 +226,6 @@ export default function TestVisualizerPage() {
     },
   ];
 
-  const testScore = 7.3;
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
@@ -267,15 +265,15 @@ export default function TestVisualizerPage() {
         </div>
       </div>
 
-      <AnalysisVisualizer sections={testSections} crediScore={testScore} />
+      <AnalysisVisualizer sections={testSections} />
 
       <div className="mt-8 text-center">
-        <a
-          href="/"
+        <button
+          onClick={() => (window.location.href = '/')}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-block"
         >
           Back to Home
-        </a>
+        </button>
       </div>
     </div>
   );

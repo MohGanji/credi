@@ -26,6 +26,18 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const getScoreColor = (score: number) => {
+    if (score >= 8) return 'text-green-600';
+    if (score >= 6) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getScoreBackground = (score: number) => {
+    if (score >= 8) return 'bg-green-100';
+    if (score >= 6) return 'bg-yellow-100';
+    return 'bg-red-100';
+  };
+
   useEffect(() => {
     const fetchAnalysis = async () => {
       try {
@@ -118,14 +130,29 @@ export default function ResultsPage() {
         </button>
 
         <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="mb-4">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Credibility Analysis
-            </h1>
-            <p className="text-gray-600">
-              {analysis.username} on{' '}
-              {analysis.platform === 'twitter' ? 'Twitter/X' : 'LinkedIn'}
-            </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Credibility Analysis
+              </h1>
+              <p className="text-gray-600">
+                {analysis.username} on{' '}
+                {analysis.platform === 'twitter' ? 'Twitter/X' : 'LinkedIn'}
+              </p>
+            </div>
+            <div
+              className={`text-center p-6 rounded-xl ${getScoreBackground(analysis.crediScore)} border-2 border-opacity-20`}
+            >
+              <div className="text-sm font-medium text-gray-600 mb-1">
+                Credi Score
+              </div>
+              <div
+                className={`text-4xl font-bold ${getScoreColor(analysis.crediScore)}`}
+              >
+                {analysis.crediScore}
+                <span className="text-lg text-gray-500">/10</span>
+              </div>
+            </div>
           </div>
 
           <div className="text-sm text-gray-500 space-y-1">
@@ -154,10 +181,7 @@ export default function ResultsPage() {
       </div>
 
       {/* Dynamic Analysis Visualization */}
-      <AnalysisVisualizer
-        sections={analysis.sections}
-        crediScore={analysis.crediScore}
-      />
+      <AnalysisVisualizer sections={analysis.sections} />
 
       {/* Footer */}
       <div className="mt-8 text-center">

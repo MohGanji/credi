@@ -46,23 +46,56 @@ test('Retry Logic Tests', async (t) => {
 
   t.test('should identify retry scenarios correctly', async (t) => {
     // Test case 1: Analysis failed with valid posts - should retry AI analysis
-    const analysisFailedWithPosts = { ...mockAnalysis, state: 'ANALYSIS_FAILED', postsId: 'test-posts-1' };
-    
-    t.equal(analysisFailedWithPosts.state, 'ANALYSIS_FAILED', 'Analysis should be in ANALYSIS_FAILED state');
-    t.ok(analysisFailedWithPosts.postsId, 'Analysis should have postsId for reuse');
-    t.equal(analysisFailedWithPosts.retryCount, 1, 'Retry count should be tracked');
+    const analysisFailedWithPosts = {
+      ...mockAnalysis,
+      state: 'ANALYSIS_FAILED',
+      postsId: 'test-posts-1',
+    };
+
+    t.equal(
+      analysisFailedWithPosts.state,
+      'ANALYSIS_FAILED',
+      'Analysis should be in ANALYSIS_FAILED state'
+    );
+    t.ok(
+      analysisFailedWithPosts.postsId,
+      'Analysis should have postsId for reuse'
+    );
+    t.equal(
+      analysisFailedWithPosts.retryCount,
+      1,
+      'Retry count should be tracked'
+    );
 
     // Test case 2: Crawling failed - should retry from crawling
-    const crawlingFailed = { ...mockAnalysis, state: 'CRAWLING_FAILED', postsId: null };
-    
-    t.equal(crawlingFailed.state, 'CRAWLING_FAILED', 'Analysis should be in CRAWLING_FAILED state');
-    t.notOk(crawlingFailed.postsId, 'Analysis should not have postsId when crawling failed');
+    const crawlingFailed = {
+      ...mockAnalysis,
+      state: 'CRAWLING_FAILED',
+      postsId: null,
+    };
+
+    t.equal(
+      crawlingFailed.state,
+      'CRAWLING_FAILED',
+      'Analysis should be in CRAWLING_FAILED state'
+    );
+    t.notOk(
+      crawlingFailed.postsId,
+      'Analysis should not have postsId when crawling failed'
+    );
 
     // Test case 3: Max retries reached - should not retry
     const maxRetriesReached = { ...mockAnalysis, retryCount: 3 };
-    
-    t.equal(maxRetriesReached.retryCount, 3, 'Should track when max retries reached');
-    t.ok(maxRetriesReached.retryCount >= 3, 'Should prevent further retries when limit reached');
+
+    t.equal(
+      maxRetriesReached.retryCount,
+      3,
+      'Should track when max retries reached'
+    );
+    t.ok(
+      maxRetriesReached.retryCount >= 3,
+      'Should prevent further retries when limit reached'
+    );
   });
 
   t.test('should handle posts expiration correctly', async (t) => {
@@ -91,12 +124,20 @@ test('Retry Logic Tests', async (t) => {
       { retryCount: 1, shouldAllow: true, description: 'second retry' },
       { retryCount: 2, shouldAllow: true, description: 'third retry' },
       { retryCount: 3, shouldAllow: false, description: 'max retries reached' },
-      { retryCount: 4, shouldAllow: false, description: 'exceeded max retries' },
+      {
+        retryCount: 4,
+        shouldAllow: false,
+        description: 'exceeded max retries',
+      },
     ];
 
     testCases.forEach(({ retryCount, shouldAllow, description }) => {
       const canRetry = retryCount < 3;
-      t.equal(canRetry, shouldAllow, `Should ${shouldAllow ? 'allow' : 'prevent'} ${description}`);
+      t.equal(
+        canRetry,
+        shouldAllow,
+        `Should ${shouldAllow ? 'allow' : 'prevent'} ${description}`
+      );
     });
   });
 
@@ -108,8 +149,15 @@ test('Retry Logic Tests', async (t) => {
       retryCount: 1,
     };
 
-    t.equal(analysisFailedScenario.state, 'ANALYSIS_FAILED', 'Should identify AI analysis failure');
-    t.ok(analysisFailedScenario.postsId, 'Should have posts available for reuse');
+    t.equal(
+      analysisFailedScenario.state,
+      'ANALYSIS_FAILED',
+      'Should identify AI analysis failure'
+    );
+    t.ok(
+      analysisFailedScenario.postsId,
+      'Should have posts available for reuse'
+    );
 
     // Test retry from crawling (no posts or crawling failed)
     const crawlingFailedScenario = {
@@ -118,31 +166,62 @@ test('Retry Logic Tests', async (t) => {
       retryCount: 1,
     };
 
-    t.equal(crawlingFailedScenario.state, 'CRAWLING_FAILED', 'Should identify crawling failure');
-    t.notOk(crawlingFailedScenario.postsId, 'Should not have posts when crawling failed');
+    t.equal(
+      crawlingFailedScenario.state,
+      'CRAWLING_FAILED',
+      'Should identify crawling failure'
+    );
+    t.notOk(
+      crawlingFailedScenario.postsId,
+      'Should not have posts when crawling failed'
+    );
   });
 
   t.test('should handle state transitions correctly', async (t) => {
     const stateTransitions = [
-      { from: 'ANALYSIS_FAILED', to: 'ANALYZING', description: 'retry AI analysis' },
-      { from: 'CRAWLING_FAILED', to: 'CRAWLING', description: 'retry crawling' },
-      { from: 'ANALYZING', to: 'COMPLETED', description: 'successful completion' },
-      { from: 'ANALYZING', to: 'ANALYSIS_FAILED', description: 'AI analysis failure' },
+      {
+        from: 'ANALYSIS_FAILED',
+        to: 'ANALYZING',
+        description: 'retry AI analysis',
+      },
+      {
+        from: 'CRAWLING_FAILED',
+        to: 'CRAWLING',
+        description: 'retry crawling',
+      },
+      {
+        from: 'ANALYZING',
+        to: 'COMPLETED',
+        description: 'successful completion',
+      },
+      {
+        from: 'ANALYZING',
+        to: 'ANALYSIS_FAILED',
+        description: 'AI analysis failure',
+      },
       { from: 'CRAWLING', to: 'ANALYZING', description: 'successful crawling' },
-      { from: 'CRAWLING', to: 'CRAWLING_FAILED', description: 'crawling failure' },
+      {
+        from: 'CRAWLING',
+        to: 'CRAWLING_FAILED',
+        description: 'crawling failure',
+      },
     ];
 
     stateTransitions.forEach(({ from, to, description }) => {
       // These are the valid state transitions based on our design
       const validTransitions = {
-        'ANALYSIS_FAILED': ['ANALYZING'],
-        'CRAWLING_FAILED': ['CRAWLING'],
-        'ANALYZING': ['COMPLETED', 'ANALYSIS_FAILED'],
-        'CRAWLING': ['ANALYZING', 'CRAWLING_FAILED'],
+        ANALYSIS_FAILED: ['ANALYZING'],
+        CRAWLING_FAILED: ['CRAWLING'],
+        ANALYZING: ['COMPLETED', 'ANALYSIS_FAILED'],
+        CRAWLING: ['ANALYZING', 'CRAWLING_FAILED'],
       };
 
-      const isValidTransition = validTransitions[from as keyof typeof validTransitions]?.includes(to);
-      t.ok(isValidTransition, `Should allow transition from ${from} to ${to} for ${description}`);
+      const isValidTransition =
+        validTransitions[from as keyof typeof validTransitions]?.includes(to);
+      t.ok(
+        isValidTransition,
+        `Should allow transition from ${from} to ${to} for ${description}`
+      );
     });
   });
 });

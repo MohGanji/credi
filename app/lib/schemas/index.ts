@@ -13,7 +13,7 @@ export {
   RepresentativePostsSectionSchema,
   RepresentativePostSchema,
   ScoreJustificationSectionSchema,
-  
+
   // TypeScript type exports
   type CredibilityAnalysisResult,
   type OverviewSection,
@@ -23,7 +23,7 @@ export {
   type RepresentativePostsSection,
   type RepresentativePost,
   type ScoreJustificationSection,
-  
+
   // Example usage patterns
   ExampleUsage,
 } from './credibility-analysis';

@@ -9,6 +9,7 @@ This design implements a robust multi-step analysis pipeline that separates data
 ### Database Schema Changes
 
 #### New Posts Table
+
 ```sql
 CREATE TABLE posts (
   id TEXT PRIMARY KEY DEFAULT (cuid()),
@@ -22,13 +23,14 @@ CREATE TABLE posts (
   posts JSON NOT NULL, -- Array of post objects
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
   expiresAt DATETIME NOT NULL,
-  
+
   INDEX idx_posts_profile_url (profileUrl),
   INDEX idx_posts_expires (expiresAt)
 );
 ```
 
 #### Updated Analysis Table
+
 ```sql
 ALTER TABLE analyses ADD COLUMN postsId TEXT REFERENCES posts(id);
 ALTER TABLE analyses ADD COLUMN state TEXT DEFAULT 'COMPLETED'; -- CRAWLING, ANALYZING, COMPLETED, CRAWLING_FAILED, ANALYSIS_FAILED
@@ -63,11 +65,13 @@ stateDiagram-v2
 **Purpose:** Coordinates the multi-step analysis process and manages state transitions.
 
 **Key Methods:**
+
 - `processAnalysisRequest(profileUrl: string): Promise<AnalysisResult>`
 - `retryFailedAnalysis(analysisId: string): Promise<AnalysisResult>`
 - `checkExistingAnalysis(profileUrl: string): Promise<Analysis | null>`
 
 **Responsibilities:**
+
 - Determine if existing analysis can be reused or needs retry
 - Coordinate between crawling and AI analysis steps
 - Handle state transitions and error recovery
@@ -78,11 +82,13 @@ stateDiagram-v2
 **Purpose:** Manage storage and retrieval of crawled social media posts.
 
 **Key Methods:**
+
 - `findValidPostsByProfileUrl(profileUrl: string): Promise<Posts | null>`
 - `createPosts(data: PostsData): Promise<Posts>`
 - `isExpired(posts: Posts): boolean`
 
 **Responsibilities:**
+
 - Store crawled posts with expiration
 - Check for existing valid posts
 - Handle posts cleanup and expiration
@@ -92,6 +98,7 @@ stateDiagram-v2
 **Purpose:** Extended to support state management and retry tracking.
 
 **New Methods:**
+
 - `createWithState(data: AnalysisData, state: AnalysisState): Promise<Analysis>`
 - `updateState(id: string, state: AnalysisState, errorMessage?: string): Promise<void>`
 - `findByProfileUrlAndState(profileUrl: string, states: AnalysisState[]): Promise<Analysis[]>`
@@ -102,6 +109,7 @@ stateDiagram-v2
 **Purpose:** Encapsulate state transition logic and validation.
 
 **Key Methods:**
+
 - `canTransition(from: AnalysisState, to: AnalysisState): boolean`
 - `getNextRetryState(currentState: AnalysisState): AnalysisState | null`
 - `shouldRetry(analysis: Analysis): boolean`
@@ -144,18 +152,21 @@ stateDiagram-v2
 ## Error Handling
 
 ### Crawling Failures
+
 - **Network errors:** Retry with exponential backoff
 - **Rate limiting:** Respect retry-after headers
 - **Authentication errors:** Log and fail permanently
 - **Profile not found:** Fail permanently with user-friendly message
 
 ### AI Analysis Failures
+
 - **JSON parsing errors:** Retry with same posts
 - **Model timeout:** Retry with extended timeout
 - **API quota exceeded:** Fail temporarily, allow retry later
 - **Invalid response format:** Log raw response, retry with different prompt
 
 ### Retry Limits
+
 - **Maximum retries per analysis:** 3 attempts
 - **Retry cooldown:** 5 minutes between attempts
 - **Permanent failure threshold:** After max retries, mark as permanently failed
@@ -163,9 +174,11 @@ stateDiagram-v2
 ## API Interface (Unchanged)
 
 ### POST /api/analysis
+
 **Request:** `{ profileUrl: string }`
 
 **Success Response:**
+
 ```json
 {
   "success": true,
@@ -183,6 +196,7 @@ stateDiagram-v2
 ```
 
 **Error Response:**
+
 ```json
 {
   "success": false,
@@ -192,9 +206,11 @@ stateDiagram-v2
 ```
 
 ### GET /api/analysis/[id]
+
 **Success Response:** (Same as current - full analysis results)
 
 **Error Response:**
+
 ```json
 {
   "success": false,
@@ -206,24 +222,28 @@ stateDiagram-v2
 ## Implementation Strategy
 
 ### Phase 1: Database Schema
+
 1. Create Posts table migration
 2. Add new columns to Analysis table
 3. Create necessary indexes
 4. Migrate existing data (mark as COMPLETED state)
 
 ### Phase 2: Core Services
+
 1. Implement PostsRepository
 2. Enhance AnalysisRepository with state management
 3. Create AnalysisStateMachine utility
 4. Build AnalysisOrchestrator service
 
 ### Phase 3: Integration
+
 1. Update analysis route to use AnalysisOrchestrator
 2. Modify CredibilityAnalyzer to handle parsing failures gracefully
 3. Add comprehensive error logging
 4. Update existing repositories to work with new schema
 
 ### Phase 4: Testing & Validation
+
 1. Unit tests for state machine logic
 2. Integration tests for retry scenarios
 3. End-to-end tests with real crawler failures
@@ -232,12 +252,14 @@ stateDiagram-v2
 ## Monitoring and Observability
 
 ### Key Metrics
+
 - Analysis success/failure rates by state
 - Average retry counts per analysis
 - Posts reuse efficiency
 - Crawler vs AI failure distribution
 
 ### Logging Strategy
+
 - Structured logs for each state transition
 - Error context preservation for debugging
 - Performance metrics for each step
@@ -246,11 +268,13 @@ stateDiagram-v2
 ## Security Considerations
 
 ### Data Privacy
+
 - Posts data contains user content - ensure proper access controls
 - Implement data retention policies for expired posts
 - Consider GDPR implications for stored social media data
 
 ### Rate Limiting
+
 - Prevent abuse through excessive retry requests
 - Implement per-IP analysis request limits
 - Monitor for suspicious retry patterns
@@ -258,16 +282,19 @@ stateDiagram-v2
 ## Performance Optimizations
 
 ### Caching Strategy
+
 - Posts table serves as persistent cache for crawled data
 - Analysis results cached as before (24 hours)
 - Database indexes for efficient state and URL lookups
 
 ### Concurrent Processing
+
 - Multiple analyses can run simultaneously
 - State machine prevents race conditions
 - Database transactions ensure consistency
 
 ### Resource Management
+
 - Cleanup expired posts automatically
 - Archive old failed analyses
 - Monitor database growth and implement cleanup policies

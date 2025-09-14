@@ -21,7 +21,7 @@ export class CrawlerFactory {
    */
   static async fetchProfile(url: string): Promise<ProfileData> {
     const sessionId = `factory_profile_${Date.now()}`;
-    
+
     logger.info('CrawlerFactory: Starting profile fetch', {
       sessionId,
       url,
@@ -36,7 +36,7 @@ export class CrawlerFactory {
         url,
         supportedPlatforms: this.getSupportedPlatforms(),
       });
-      
+
       const error = new Error(
         'Unsupported platform. Only Twitter/X and LinkedIn profiles are supported.'
       ) as any;
@@ -51,7 +51,7 @@ export class CrawlerFactory {
 
     try {
       const result = await crawler.fetchProfile(url);
-      
+
       logger.info('CrawlerFactory: Profile fetch completed successfully', {
         sessionId,
         platform: result.platform,
@@ -60,7 +60,7 @@ export class CrawlerFactory {
         verified: result.verified,
         followerCount: result.followerCount,
       });
-      
+
       return result;
     } catch (error) {
       logger.error('CrawlerFactory: Profile fetch failed', {
@@ -80,7 +80,7 @@ export class CrawlerFactory {
     maxCount: number = 20
   ): Promise<Post[]> {
     const sessionId = `factory_posts_${Date.now()}`;
-    
+
     logger.info('CrawlerFactory: Starting posts fetch', {
       sessionId,
       url,
@@ -96,7 +96,7 @@ export class CrawlerFactory {
         url,
         supportedPlatforms: this.getSupportedPlatforms(),
       });
-      
+
       const error = new Error(
         'Unsupported platform. Only Twitter/X and LinkedIn profiles are supported.'
       ) as any;
@@ -111,15 +111,16 @@ export class CrawlerFactory {
 
     try {
       const result = await crawler.fetchRecentPosts(url, maxCount);
-      
+
       logger.info('CrawlerFactory: Posts fetch completed successfully', {
         sessionId,
         postCount: result.length,
         maxCount,
-        averageContentLength: result.reduce((sum, p) => sum + p.content.length, 0) / result.length,
-        platforms: [...new Set(result.map(p => p.author.username))].length,
+        averageContentLength:
+          result.reduce((sum, p) => sum + p.content.length, 0) / result.length,
+        platforms: [...new Set(result.map((p) => p.author.username))].length,
       });
-      
+
       return result;
     } catch (error) {
       logger.error('CrawlerFactory: Posts fetch failed', {
@@ -136,7 +137,7 @@ export class CrawlerFactory {
    */
   private static getCrawler(url: string): BaseCrawler | null {
     const useRealCrawlers = process.env.USE_REAL_CRAWLERS === 'true';
-    
+
     logger.debug('CrawlerFactory: Selecting crawler', {
       url,
       useRealCrawlers,
@@ -144,7 +145,7 @@ export class CrawlerFactory {
       hasTwitterActorId: !!process.env.APIFY_TWITTER_ACTOR_ID,
       hasLinkedInActorId: !!process.env.APIFY_LINKEDIN_ACTOR_ID,
     });
-    
+
     // Detect platform first to avoid initializing unnecessary crawlers
     const platform = this.detectPlatform(url);
     if (!platform) {
@@ -155,23 +156,31 @@ export class CrawlerFactory {
     if (useRealCrawlers) {
       // Use real crawlers (which internally fall back to mock if needed)
       if (platform === 'twitter') {
-        logger.debug('CrawlerFactory: Selected Twitter crawler (real)', { url });
+        logger.debug('CrawlerFactory: Selected Twitter crawler (real)', {
+          url,
+        });
         return this.getOrCreateCrawler('twitter', TwitterCrawler);
       }
 
       if (platform === 'linkedin') {
-        logger.debug('CrawlerFactory: Selected LinkedIn crawler (real)', { url });
+        logger.debug('CrawlerFactory: Selected LinkedIn crawler (real)', {
+          url,
+        });
         return this.getOrCreateCrawler('linkedin', LinkedInCrawler);
       }
     } else {
       // Use mock crawlers directly
       if (platform === 'twitter') {
-        logger.debug('CrawlerFactory: Selected Twitter crawler (mock)', { url });
+        logger.debug('CrawlerFactory: Selected Twitter crawler (mock)', {
+          url,
+        });
         return this.getOrCreateMockCrawler('twitter', TwitterCrawlerMock);
       }
 
       if (platform === 'linkedin') {
-        logger.debug('CrawlerFactory: Selected LinkedIn crawler (mock)', { url });
+        logger.debug('CrawlerFactory: Selected LinkedIn crawler (mock)', {
+          url,
+        });
         return this.getOrCreateMockCrawler('linkedin', LinkedInCrawlerMock);
       }
     }
@@ -185,23 +194,28 @@ export class CrawlerFactory {
    */
   private static detectPlatform(url: string): string | null {
     const normalizedUrl = url.toLowerCase();
-    
+
     // Twitter/X detection
-    if (normalizedUrl.includes('twitter.com') || normalizedUrl.includes('x.com')) {
-      const twitterPattern = /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/?$/;
+    if (
+      normalizedUrl.includes('twitter.com') ||
+      normalizedUrl.includes('x.com')
+    ) {
+      const twitterPattern =
+        /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/?$/;
       if (twitterPattern.test(url)) {
         return 'twitter';
       }
     }
-    
+
     // LinkedIn detection
     if (normalizedUrl.includes('linkedin.com')) {
-      const linkedinPattern = /^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+\/?$/;
+      const linkedinPattern =
+        /^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+\/?$/;
       if (linkedinPattern.test(url)) {
         return 'linkedin';
       }
     }
-    
+
     return null;
   }
 

@@ -96,7 +96,9 @@ export class TwitterCrawler extends BaseCrawler {
       });
 
       // Get results from the dataset
-      const { items } = await this.apifyClient.dataset(run.defaultDatasetId).listItems();
+      const { items } = await this.apifyClient
+        .dataset(run.defaultDatasetId)
+        .listItems();
 
       logger.info('Retrieved Twitter profile data from Apify', {
         sessionId,
@@ -110,7 +112,7 @@ export class TwitterCrawler extends BaseCrawler {
       }
 
       const profileData = items[0] as any;
-      
+
       // Log the structure of the response for debugging
       logger.debug('Twitter profile data structure', {
         sessionId,
@@ -133,13 +135,26 @@ export class TwitterCrawler extends BaseCrawler {
 
       const result = {
         platform: 'twitter',
-        username: author.screenName || author.screen_name || author.username || username,
-        displayName: author.name || author.displayName || author.display_name || username,
+        username:
+          author.screenName ||
+          author.screen_name ||
+          author.username ||
+          username,
+        displayName:
+          author.name || author.displayName || author.display_name || username,
         profileTitle: `${author.name || author.displayName || username} (@${author.screenName || author.screen_name || author.username || username})`,
         bio: author.description || author.bio || '',
         isPublic: true,
-        profilePicture: author.profileImageUrl || author.profile_image_url || author.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || username)}&background=1da1f2&color=fff&size=128&bold=true`,
-        followerCount: author.followersCount || author.followers_count || author.followerCount || 0,
+        profilePicture:
+          author.profileImageUrl ||
+          author.profile_image_url ||
+          author.profilePicture ||
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || username)}&background=1da1f2&color=fff&size=128&bold=true`,
+        followerCount:
+          author.followersCount ||
+          author.followers_count ||
+          author.followerCount ||
+          0,
         verified: author.verified || false,
         lastUpdated: new Date().toISOString(),
       };
@@ -222,7 +237,9 @@ export class TwitterCrawler extends BaseCrawler {
       });
 
       // Get results from the dataset
-      const { items } = await this.apifyClient.dataset(run.defaultDatasetId).listItems();
+      const { items } = await this.apifyClient
+        .dataset(run.defaultDatasetId)
+        .listItems();
 
       logger.info('Retrieved Twitter posts data from Apify', {
         sessionId,
@@ -250,40 +267,87 @@ export class TwitterCrawler extends BaseCrawler {
 
       // Log if we got fewer posts than requested
       if (items.length < resultsLimit) {
-        logger.info('Received fewer posts than requested - this may be normal if the profile has limited recent posts', {
-          sessionId,
-          requested: resultsLimit,
-          received: items.length,
-          profileUrl: url,
-        });
+        logger.info(
+          'Received fewer posts than requested - this may be normal if the profile has limited recent posts',
+          {
+            sessionId,
+            requested: resultsLimit,
+            received: items.length,
+            profileUrl: url,
+          }
+        );
       }
 
       // Convert Apify results to our Post format
       const posts: Post[] = items.map((item: any, index: number) => {
-        const postAuthor = item.author || item.user || { screenName: username, name: username };
+        const postAuthor = item.author ||
+          item.user || { screenName: username, name: username };
         const post = {
-          id: item.postId || item.id || item.conversationId || item.id_str || `post_${Date.now()}_${Math.random()}`,
-          content: item.postText || item.text || item.full_text || item.content || '',
-          createdAt: item.timestamp || item.created_at ? new Date(item.timestamp || item.created_at).toISOString() : new Date().toISOString(),
+          id:
+            item.postId ||
+            item.id ||
+            item.conversationId ||
+            item.id_str ||
+            `post_${Date.now()}_${Math.random()}`,
+          content:
+            item.postText || item.text || item.full_text || item.content || '',
+          createdAt:
+            item.timestamp || item.created_at
+              ? new Date(item.timestamp || item.created_at).toISOString()
+              : new Date().toISOString(),
           author: {
-            username: postAuthor.screenName || postAuthor.screen_name || postAuthor.username || username,
-            displayName: postAuthor.name || postAuthor.displayName || postAuthor.display_name || postAuthor.screenName || 'Unknown User',
+            username:
+              postAuthor.screenName ||
+              postAuthor.screen_name ||
+              postAuthor.username ||
+              username,
+            displayName:
+              postAuthor.name ||
+              postAuthor.displayName ||
+              postAuthor.display_name ||
+              postAuthor.screenName ||
+              'Unknown User',
           },
           metrics: {
-            likes: item.favouriteCount || item.likeCount || item.favorite_count || item.like_count || 0,
-            shares: item.repostCount || item.retweetCount || item.retweet_count || item.quote_count || 0,
+            likes:
+              item.favouriteCount ||
+              item.likeCount ||
+              item.favorite_count ||
+              item.like_count ||
+              0,
+            shares:
+              item.repostCount ||
+              item.retweetCount ||
+              item.retweet_count ||
+              item.quote_count ||
+              0,
             comments: item.replyCount || item.reply_count || 0,
             views: item.viewCount || item.view_count || 0,
           },
-          url: item.postUrl || item.url || `https://x.com/${postAuthor.screenName || postAuthor.screen_name || username}/status/${item.postId || item.id || item.id_str}`,
+          url:
+            item.postUrl ||
+            item.url ||
+            `https://x.com/${postAuthor.screenName || postAuthor.screen_name || username}/status/${item.postId || item.id || item.id_str}`,
           isRetweet: item.isRetweet || item.is_retweet || false,
-          originalPost: (item.isRetweet || item.is_retweet) ? {
-            id: item.originalPostId || item.retweeted_status?.id_str || 'unknown',
-            author: {
-              username: item.originalAuthor?.screenName || item.retweeted_status?.user?.screen_name || 'unknown',
-              displayName: item.originalAuthor?.name || item.retweeted_status?.user?.name || 'Unknown User',
-            },
-          } : undefined,
+          originalPost:
+            item.isRetweet || item.is_retweet
+              ? {
+                  id:
+                    item.originalPostId ||
+                    item.retweeted_status?.id_str ||
+                    'unknown',
+                  author: {
+                    username:
+                      item.originalAuthor?.screenName ||
+                      item.retweeted_status?.user?.screen_name ||
+                      'unknown',
+                    displayName:
+                      item.originalAuthor?.name ||
+                      item.retweeted_status?.user?.name ||
+                      'Unknown User',
+                  },
+                }
+              : undefined,
         };
 
         logger.debug('Processed Twitter post', {
@@ -292,7 +356,11 @@ export class TwitterCrawler extends BaseCrawler {
           postId: post.id,
           contentLength: post.content.length,
           isRetweet: post.isRetweet,
-          hasMetrics: !!(post.metrics.likes || post.metrics.shares || post.metrics.comments),
+          hasMetrics: !!(
+            post.metrics.likes ||
+            post.metrics.shares ||
+            post.metrics.comments
+          ),
         });
 
         return post;
@@ -305,8 +373,10 @@ export class TwitterCrawler extends BaseCrawler {
         totalPostsRetrieved: posts.length,
         finalPostCount: finalPosts.length,
         maxCount,
-        averageContentLength: finalPosts.reduce((sum, p) => sum + p.content.length, 0) / finalPosts.length,
-        retweetCount: finalPosts.filter(p => p.isRetweet).length,
+        averageContentLength:
+          finalPosts.reduce((sum, p) => sum + p.content.length, 0) /
+          finalPosts.length,
+        retweetCount: finalPosts.filter((p) => p.isRetweet).length,
       });
 
       return finalPosts;

@@ -60,6 +60,7 @@ interface AgentConfig {
 5. LangChain automatically handles retries, provider optimization, and error cases
 
 **No Custom Helper Methods Needed**:
+
 - LangChain's `withStructuredOutput()` handles schema conversion, validation, and retries
 - Provider-specific optimizations (function calling, JSON mode) handled automatically
 - Error handling and retry logic built into LangChain
@@ -75,39 +76,54 @@ import { z } from 'zod';
 
 // Example: Well-documented schema with descriptions
 const AnalysisResultSchema = z.object({
-  crediScore: z.number()
-    .min(0).max(10)
-    .describe("Overall credibility score from 0-10, where 0 is completely unreliable and 10 is highly credible"),
-  
-  overview: z.object({
-    sampledPosts: z.number()
-      .describe("Total number of posts analyzed from the profile"),
-    
-    focusAreas: z.array(z.string())
-      .describe("List of main topics or themes identified in the analyzed content"),
-  }).describe("High-level summary of the analysis scope and focus"),
-  
-  detailedAnalysis: z.array(
-    z.object({
-      criterion: z.string()
-        .describe("Name of the credibility criterion being evaluated"),
-      
-      score: z.number().min(0).max(10)
-        .describe("Score for this specific criterion from 0-10"),
-      
-      reasoning: z.string()
-        .describe("Detailed explanation of why this score was assigned, with specific examples"),
+  crediScore: z
+    .number()
+    .min(0)
+    .max(10)
+    .describe(
+      'Overall credibility score from 0-10, where 0 is completely unreliable and 10 is highly credible'
+    ),
+
+  overview: z
+    .object({
+      sampledPosts: z
+        .number()
+        .describe('Total number of posts analyzed from the profile'),
+
+      focusAreas: z
+        .array(z.string())
+        .describe(
+          'List of main topics or themes identified in the analyzed content'
+        ),
     })
-  ).describe("Breakdown of analysis by individual credibility criteria"),
+    .describe('High-level summary of the analysis scope and focus'),
+
+  detailedAnalysis: z
+    .array(
+      z.object({
+        criterion: z
+          .string()
+          .describe('Name of the credibility criterion being evaluated'),
+
+        score: z
+          .number()
+          .min(0)
+          .max(10)
+          .describe('Score for this specific criterion from 0-10'),
+
+        reasoning: z
+          .string()
+          .describe(
+            'Detailed explanation of why this score was assigned, with specific examples'
+          ),
+      })
+    )
+    .describe('Breakdown of analysis by individual credibility criteria'),
 });
 
 // Use with service - returns typed data directly
-const result: z.infer<typeof AnalysisResultSchema> = await agentExecutor.executeAgent(
-  model,
-  prompt,
-  config,
-  AnalysisResultSchema
-);
+const result: z.infer<typeof AnalysisResultSchema> =
+  await agentExecutor.executeAgent(model, prompt, config, AnalysisResultSchema);
 
 // result is fully typed and validated by LangChain
 console.log(result.crediScore); // TypeScript knows this is a number
@@ -153,17 +169,18 @@ try {
 
 ```typescript
 // Well-documented test schemas
-const SimpleSchema = z.object({ 
-  message: z.string().describe("A simple text message response") 
+const SimpleSchema = z.object({
+  message: z.string().describe('A simple text message response'),
 });
 
 const ComplexSchema = z.object({
-  score: z.number().min(0).max(10)
-    .describe("Numerical score from 0 to 10"),
-  summary: z.string()
-    .describe("Brief summary of the analysis in 1-2 sentences"),
-  details: z.array(z.string())
-    .describe("List of specific findings or observations")
+  score: z.number().min(0).max(10).describe('Numerical score from 0 to 10'),
+  summary: z
+    .string()
+    .describe('Brief summary of the analysis in 1-2 sentences'),
+  details: z
+    .array(z.string())
+    .describe('List of specific findings or observations'),
 });
 ```
 
@@ -189,9 +206,9 @@ const analysisContent = result.responses[0]?.content || '';
 
 // After (with LangChain structured output)
 const analysisResult: AnalysisResult = await this.agentExecutor.agentConsensus(
-  models, 
-  prompt, 
-  config, 
+  models,
+  prompt,
+  config,
   AnalysisResultSchema // Well-documented Zod schema
 );
 // analysisResult is fully typed and guaranteed to match schema

@@ -10,7 +10,7 @@ import {
   CredibilityAnalysisResult,
   ScoringResultSchema,
   calculateWeightedScore,
-  DEFAULT_SCORING_WEIGHTS
+  DEFAULT_SCORING_WEIGHTS,
 } from '../schemas/credibility-analysis';
 
 /**
@@ -94,24 +94,28 @@ export class CredibilityAnalyzer {
         const consensusModels = this.getConsensusModels();
         const aggregatorModel = this.getConsensusAggregatorModel();
 
-        logger.info('Executing consensus analysis with aggregation and structured output', {
-          sessionId,
-          inputModelCount: consensusModels.length,
-          inputModels: consensusModels.map((m) => m.name),
-          aggregatorModel: aggregatorModel.name,
-        });
-
-        const consensusResult = await this.agentExecutor.executeConsensusWithAggregation(
-          consensusModels,
-          aggregatorModel,
-          analysisPrompt,
+        logger.info(
+          'Executing consensus analysis with aggregation and structured output',
           {
-            temperature: 0.2,
-            maxTokens: 4000,
-            timeout: options?.timeout || 120000,
-          },
-          CredibilityAnalysisResultSchema
+            sessionId,
+            inputModelCount: consensusModels.length,
+            inputModels: consensusModels.map((m) => m.name),
+            aggregatorModel: aggregatorModel.name,
+          }
         );
+
+        const consensusResult =
+          await this.agentExecutor.executeConsensusWithAggregation(
+            consensusModels,
+            aggregatorModel,
+            analysisPrompt,
+            {
+              temperature: 0.2,
+              maxTokens: 4000,
+              timeout: options?.timeout || 120000,
+            },
+            CredibilityAnalysisResultSchema
+          );
 
         // Calculate weighted score from individual criteria
         const calculatedScore = calculateWeightedScore(
@@ -128,20 +132,26 @@ export class CredibilityAnalyzer {
         modelUsed = consensusResult.model;
         totalTokens = consensusResult.tokensUsed || 0;
 
-        logger.info('Consensus analysis with aggregation and structured output completed', {
-          sessionId,
-          model: consensusResult.model,
-          tokensUsed: consensusResult.tokensUsed,
-          processingTime: consensusResult.processingTime,
-          originalScore: consensusResult.content.crediScore,
-          calculatedScore: calculatedScore,
-          criteriaCount: consensusResult.content.criteriaEvaluation.length,
-        });
+        logger.info(
+          'Consensus analysis with aggregation and structured output completed',
+          {
+            sessionId,
+            model: consensusResult.model,
+            tokensUsed: consensusResult.tokensUsed,
+            processingTime: consensusResult.processingTime,
+            originalScore: consensusResult.content.crediScore,
+            calculatedScore: calculatedScore,
+            criteriaCount: consensusResult.content.criteriaEvaluation.length,
+          }
+        );
       } else {
-        logger.info('Executing single model analysis with criteria-based scoring', {
-          sessionId,
-          model: models[0].name,
-        });
+        logger.info(
+          'Executing single model analysis with criteria-based scoring',
+          {
+            sessionId,
+            model: models[0].name,
+          }
+        );
 
         // Use single model execution with structured output
         const singleResult = await this.agentExecutor.executeAgent(
@@ -170,15 +180,18 @@ export class CredibilityAnalyzer {
         modelUsed = singleResult.model;
         totalTokens = singleResult.tokensUsed || 0;
 
-        logger.info('Single model analysis with criteria-based scoring completed', {
-          sessionId,
-          model: singleResult.model,
-          tokensUsed: singleResult.tokensUsed,
-          processingTime: singleResult.processingTime,
-          originalScore: singleResult.content.crediScore,
-          calculatedScore: calculatedScore,
-          criteriaCount: singleResult.content.criteriaEvaluation.length,
-        });
+        logger.info(
+          'Single model analysis with criteria-based scoring completed',
+          {
+            sessionId,
+            model: singleResult.model,
+            tokensUsed: singleResult.tokensUsed,
+            processingTime: singleResult.processingTime,
+            originalScore: singleResult.content.crediScore,
+            calculatedScore: calculatedScore,
+            criteriaCount: singleResult.content.criteriaEvaluation.length,
+          }
+        );
       }
     } catch (error) {
       logger.error('Structured output analysis failed', {
@@ -219,7 +232,9 @@ export class CredibilityAnalyzer {
     logger.info('Analysis completed successfully', {
       sessionId,
       finalScore: finalResult.crediScore,
-      sectionCount: Array.isArray(finalResult.sections) ? finalResult.sections.length : 0,
+      sectionCount: Array.isArray(finalResult.sections)
+        ? finalResult.sections.length
+        : 0,
       totalProcessingTime: Date.now() - startTime,
       totalTokensUsed: totalTokens,
       modelsUsed: modelUsed,
@@ -551,7 +566,9 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
       .join('\n');
 
     // Get platform display name for better context
-    const platformDisplayName = this.getPlatformDisplayName(profileInfo.platform);
+    const platformDisplayName = this.getPlatformDisplayName(
+      profileInfo.platform
+    );
 
     return template
       .replace('{platform}', platformDisplayName)
@@ -584,8 +601,6 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
 
     return template.replace('{analysisData}', JSON.stringify(analysisData));
   }
-
-
 
   private convertStructuredResultToAnalysis(
     structuredResult: CredibilityAnalysisResult,
@@ -654,13 +669,12 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
       strengthsFields: Object.keys(structuredResult.strengths).length,
       criteriaEvaluations: structuredResult.criteriaEvaluation.length,
       representativePosts: structuredResult.representativePosts.length,
-      scoreJustificationFields: Object.keys(structuredResult.scoreJustification).length,
+      scoreJustificationFields: Object.keys(structuredResult.scoreJustification)
+        .length,
     });
 
     return finalResult;
   }
-
-
 
   private getMockAnalysisResult(
     profileInfo: any
@@ -671,27 +685,42 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
         criterion: 'Unnecessary Complexity',
         score: 8.0,
         status: 'strong' as const,
-        evaluation: 'The profile demonstrates clear communication with minimal unnecessary jargon. Content is accessible to a general audience while maintaining technical accuracy.',
-        examples: ['Uses plain language to explain complex concepts', 'Avoids excessive technical terminology'],
+        evaluation:
+          'The profile demonstrates clear communication with minimal unnecessary jargon. Content is accessible to a general audience while maintaining technical accuracy.',
+        examples: [
+          'Uses plain language to explain complex concepts',
+          'Avoids excessive technical terminology',
+        ],
       },
       {
         criterion: 'Lack of Sourcing',
         score: 7.5,
         status: 'strong' as const,
-        evaluation: 'Most claims are supported with appropriate references. Some improvement could be made in consistently citing primary sources.',
-        examples: ['Links to peer-reviewed studies', 'References authoritative sources'],
+        evaluation:
+          'Most claims are supported with appropriate references. Some improvement could be made in consistently citing primary sources.',
+        examples: [
+          'Links to peer-reviewed studies',
+          'References authoritative sources',
+        ],
       },
       {
         criterion: 'Guru Syndrome',
         score: 6.8,
         status: 'adequate' as const,
-        evaluation: 'Generally maintains humility while sharing expertise. Occasionally presents views with high confidence but acknowledges limitations.',
-        examples: ['Acknowledges uncertainty in some posts', 'Presents balanced viewpoints'],
+        evaluation:
+          'Generally maintains humility while sharing expertise. Occasionally presents views with high confidence but acknowledges limitations.',
+        examples: [
+          'Acknowledges uncertainty in some posts',
+          'Presents balanced viewpoints',
+        ],
       },
     ];
 
     // Calculate weighted score from mock criteria
-    const calculatedScore = calculateWeightedScore(mockCriteriaEvaluation, DEFAULT_SCORING_WEIGHTS);
+    const calculatedScore = calculateWeightedScore(
+      mockCriteriaEvaluation,
+      DEFAULT_SCORING_WEIGHTS
+    );
 
     return {
       profileUrl: '',
@@ -723,9 +752,12 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
         {
           name: 'strengths',
           data: {
-            'Source Citations': 'Consistently references credible sources and studies',
-            'Balanced Perspective': 'Presents multiple viewpoints on complex topics',
-            'Transparent Communication': 'Clear about limitations and uncertainties',
+            'Source Citations':
+              'Consistently references credible sources and studies',
+            'Balanced Perspective':
+              'Presents multiple viewpoints on complex topics',
+            'Transparent Communication':
+              'Clear about limitations and uncertainties',
           },
         },
         {
@@ -733,8 +765,10 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
           data: [
             {
               category: 'Educational Content',
-              content: '[Jan 15, 2024][]\nSharing insights on evidence-based practices with proper citations and balanced perspective.',
-              reasoning: 'Demonstrates commitment to factual accuracy and educational value',
+              content:
+                '[Jan 15, 2024][]\nSharing insights on evidence-based practices with proper citations and balanced perspective.',
+              reasoning:
+                'Demonstrates commitment to factual accuracy and educational value',
             },
           ],
         },
@@ -764,8 +798,6 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
       scoringPrompt: null, // Will be set by caller if used
     };
   }
-
-
 
   /**
    * Check if the service is properly configured

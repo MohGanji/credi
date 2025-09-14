@@ -85,11 +85,14 @@ export class AgentExecutorService {
       // If schema is provided, use structured output with retry mechanism
       if (schema) {
         const maxRetries = config?.retryCount ?? 3;
-        console.log(`[AgentExecutor] Using structured output with schema and retry mechanism`, {
-          executionId,
-          model: model.name,
-          maxRetries,
-        });
+        console.log(
+          `[AgentExecutor] Using structured output with schema and retry mechanism`,
+          {
+            executionId,
+            model: model.name,
+            maxRetries,
+          }
+        );
 
         const result = await this.executeStructuredOutputWithRetry(
           langchainModel,
@@ -255,19 +258,27 @@ export class AgentExecutorService {
         });
 
         if (successfulResponses.length === 0) {
-          console.error(`[AgentExecutor] All models failed in structured consensus`, {
-            consensusId,
-            failures,
-          });
-          throw new Error('All models failed to execute with structured output');
+          console.error(
+            `[AgentExecutor] All models failed in structured consensus`,
+            {
+              consensusId,
+              failures,
+            }
+          );
+          throw new Error(
+            'All models failed to execute with structured output'
+          );
         }
 
         if (failures.length > 0) {
-          console.warn(`[AgentExecutor] Some models failed during structured consensus`, {
-            consensusId,
-            failureCount: failures.length,
-            failures: failures.map((f) => f.message || f.toString()),
-          });
+          console.warn(
+            `[AgentExecutor] Some models failed during structured consensus`,
+            {
+              consensusId,
+              failureCount: failures.length,
+              failures: failures.map((f) => f.message || f.toString()),
+            }
+          );
         }
 
         const consensusResult = {
@@ -275,18 +286,23 @@ export class AgentExecutorService {
           processingTime: Date.now() - startTime,
         };
 
-        console.log(`[AgentExecutor] Structured consensus completed successfully`, {
-          consensusId,
-          responseCount: successfulResponses.length,
-          totalTokens: successfulResponses.reduce(
-            (sum, r) => sum + (r.tokensUsed || 0),
-            0
-          ),
-          avgProcessingTime:
-            successfulResponses.reduce((sum, r) => sum + r.processingTime, 0) /
-            successfulResponses.length,
-          totalProcessingTime: consensusResult.processingTime,
-        });
+        console.log(
+          `[AgentExecutor] Structured consensus completed successfully`,
+          {
+            consensusId,
+            responseCount: successfulResponses.length,
+            totalTokens: successfulResponses.reduce(
+              (sum, r) => sum + (r.tokensUsed || 0),
+              0
+            ),
+            avgProcessingTime:
+              successfulResponses.reduce(
+                (sum, r) => sum + r.processingTime,
+                0
+              ) / successfulResponses.length,
+            totalProcessingTime: consensusResult.processingTime,
+          }
+        );
 
         return consensusResult as ConsensusResponse<T>;
       }
@@ -437,11 +453,14 @@ export class AgentExecutorService {
       // If schema is provided, use structured output
       if (schema) {
         const maxRetries = config?.retryCount ?? 3;
-        console.log(`[AgentExecutor] Starting structured consensus with aggregation and retry mechanism`, {
-          aggregationId,
-          structuredOutput: true,
-          maxRetries,
-        });
+        console.log(
+          `[AgentExecutor] Starting structured consensus with aggregation and retry mechanism`,
+          {
+            aggregationId,
+            structuredOutput: true,
+            maxRetries,
+          }
+        );
 
         // Step 1: Get structured responses from all input models
         console.log(
@@ -464,13 +483,16 @@ export class AgentExecutorService {
         );
         const modelDescription = `consensus(${consensusResult.responses.map((r) => r.model).join(',')})`;
 
-        console.log(`[AgentExecutor] Structured consensus aggregation completed`, {
-          aggregationId,
-          inputResponses: consensusResult.responses.length,
-          totalTokensUsed,
-          totalProcessingTime: Date.now() - startTime,
-          modelDescription,
-        });
+        console.log(
+          `[AgentExecutor] Structured consensus aggregation completed`,
+          {
+            aggregationId,
+            inputResponses: consensusResult.responses.length,
+            totalTokensUsed,
+            totalProcessingTime: Date.now() - startTime,
+            modelDescription,
+          }
+        );
 
         return {
           content: firstResponse.content,
@@ -591,8 +613,6 @@ Instructions:
 Provide your synthesized response:`;
   }
 
-
-
   private createLangChainModel(
     model: ModelConfig,
     config?: AgentConfig
@@ -668,12 +688,15 @@ IMPORTANT: You MUST respond with valid JSON that matches the required schema for
           : originalPrompt;
 
         if (isRetry) {
-          console.log(`[AgentExecutor] Retrying structured output (attempt ${attempt + 1}/${maxRetries})`, {
-            executionId,
-            model: modelName,
-            attempt: attempt + 1,
-            previousError: lastError?.message,
-          });
+          console.log(
+            `[AgentExecutor] Retrying structured output (attempt ${attempt + 1}/${maxRetries})`,
+            {
+              executionId,
+              model: modelName,
+              attempt: attempt + 1,
+              previousError: lastError?.message,
+            }
+          );
         }
 
         const structuredModel = langchainModel.withStructuredOutput(schema);
@@ -691,14 +714,17 @@ IMPORTANT: You MUST respond with valid JSON that matches the required schema for
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
-        console.warn(`[AgentExecutor] Structured output attempt ${attempt + 1} failed`, {
-          executionId,
-          model: modelName,
-          attempt: attempt + 1,
-          maxRetries,
-          error: lastError.message,
-          willRetry: attempt < maxRetries - 1,
-        });
+        console.warn(
+          `[AgentExecutor] Structured output attempt ${attempt + 1} failed`,
+          {
+            executionId,
+            model: modelName,
+            attempt: attempt + 1,
+            maxRetries,
+            error: lastError.message,
+            willRetry: attempt < maxRetries - 1,
+          }
+        );
 
         // If this is the last attempt, we'll throw the error after the loop
         if (attempt === maxRetries - 1) {

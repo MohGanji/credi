@@ -25,7 +25,7 @@ This feature transforms the current single-step analysis process into a robust m
 #### Acceptance Criteria
 
 1. WHEN an analysis is initiated THEN it SHALL start in "CRAWLING" state
-2. WHEN posts are successfully fetched THEN the state SHALL transition to "ANALYZING" 
+2. WHEN posts are successfully fetched THEN the state SHALL transition to "ANALYZING"
 3. WHEN AI analysis completes successfully THEN the state SHALL transition to "COMPLETED"
 4. IF crawling fails THEN the state SHALL transition to "CRAWLING_FAILED"
 5. IF AI analysis fails THEN the state SHALL transition to "ANALYSIS_FAILED"

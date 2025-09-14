@@ -93,7 +93,7 @@ export default function Home() {
         success: false,
         error: 'Network error occurred',
         details: 'Please check your connection and try again.',
-        type: 'network_error'
+        type: 'network_error',
       });
     } finally {
       setIsAnalyzing(false);
@@ -249,9 +249,7 @@ export default function Home() {
               <p className="text-sm font-medium text-red-800 mb-2">
                 What happened?
               </p>
-              <p className="text-sm text-red-700">
-                {analysisError.details}
-              </p>
+              <p className="text-sm text-red-700">{analysisError.details}</p>
             </div>
 
             <div className="pt-3 border-t border-red-200">
