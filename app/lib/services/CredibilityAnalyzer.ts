@@ -516,18 +516,34 @@ export class CredibilityAnalyzer {
         (post: any, i: number) => `
 Post ${i + 1} (${post.timestamp}):
 ${post.content}
+${post.url ? `URL: ${post.url}` : ''}
 ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
 `
       )
       .join('\n');
 
+    // Get platform display name for better context
+    const platformDisplayName = this.getPlatformDisplayName(profileInfo.platform);
+
     return template
+      .replace('{platform}', platformDisplayName)
       .replace('{username}', profileInfo.username || 'unknown')
       .replace('{displayName}', profileInfo.displayName || 'unknown')
       .replace('{bio}', profileInfo.bio || 'No bio available')
       .replace('{verified}', profileInfo.verified ? 'Yes' : 'No')
       .replace('{postCount}', posts.length.toString())
       .replace('{posts}', postsText);
+  }
+
+  private getPlatformDisplayName(platform: string): string {
+    switch (platform?.toLowerCase()) {
+      case 'twitter':
+        return 'Twitter/X';
+      case 'linkedin':
+        return 'LinkedIn';
+      default:
+        return platform || '';
+    }
   }
 
   private buildScoringPrompt(analysisData: any): string {
