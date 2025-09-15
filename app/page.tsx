@@ -132,10 +132,10 @@ export default function Home() {
                 onChange={handleUrlChange}
                 placeholder="https://twitter.com/username or https://linkedin.com/in/username"
                 className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${validationResult?.isValid === false
-                    ? 'border-red-300'
-                    : validationResult?.isValid === true
-                      ? 'border-green-300'
-                      : 'border-gray-300'
+                  ? 'border-red-300'
+                  : validationResult?.isValid === true
+                    ? 'border-green-300'
+                    : 'border-gray-300'
                   }`}
               />
               {validationResult?.platform && (
@@ -238,10 +238,6 @@ export default function Home() {
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Analyzing Profile
               </h3>
-              <p className="text-gray-600 mb-1">
-                We&apos;re analyzing the profile&apos;s content for credibility
-                indicators
-              </p>
               <p className="text-sm text-gray-500">
                 This usually takes around a minute to complete
               </p>
