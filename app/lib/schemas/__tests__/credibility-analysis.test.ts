@@ -12,11 +12,10 @@ import {
 
 test('OverviewSectionSchema validation', async (t) => {
   const validOverview = {
-    'Sampled Posts': '15 posts',
-    'Focus Areas': 'Health advice, Nutrition claims, Personal anecdotes',
-    'Analysis Date': '2024-01-15T10:30:00Z',
-    Platform: 'twitter',
-    'Profile Status': 'Active',
+    'Sampled Posts': '15 Posts',
+    'Focus Area': 'Health advice, Nutrition claims, Personal anecdotes',
+    'Analysis Date': 'January 15, 2024',
+    Platform: 'Twitter/X',
   };
 
   const result = OverviewSectionSchema.safeParse(validOverview);
@@ -25,15 +24,20 @@ test('OverviewSectionSchema validation', async (t) => {
   if (result.success) {
     t.equal(
       result.data['Sampled Posts'],
-      '15 posts',
+      '15 Posts',
       'Sampled Posts should be preserved'
     );
-    t.equal(result.data.Platform, 'twitter', 'Platform should be preserved');
+    t.equal(result.data.Platform, 'Twitter/X', 'Platform should be preserved');
+    t.equal(
+      result.data['Focus Area'],
+      'Health advice, Nutrition claims, Personal anecdotes',
+      'Focus Area should be preserved'
+    );
   }
 
   // Test missing required field
   const invalidOverview = {
-    'Sampled Posts': '15 posts',
+    'Sampled Posts': '15 Posts',
     // Missing other required fields
   };
 
@@ -212,15 +216,14 @@ test('Complete CredibilityAnalysisResultSchema validation', async (t) => {
   const validAnalysis: CredibilityAnalysisResult = {
     crediScore: 7.5,
     overview: {
-      'Sampled Posts': '20 posts',
-      'Focus Areas': 'Health advice, Nutrition science, Fitness tips',
-      'Analysis Date': '2024-01-15T10:30:00Z',
-      Platform: 'twitter',
-      'Profile Status': 'Verified',
+      'Sampled Posts': '20 Posts',
+      'Focus Area': 'Health advice, Nutrition science, Fitness tips',
+      'Analysis Date': 'January 15, 2024',
+      Platform: 'Twitter/X',
     },
     strengths: {
       'Source Citations': 'Regularly cites peer-reviewed research',
-      'Professional Background': 'Licensed dietitian with advanced degrees',
+      'Expert Credentials': 'Licensed dietitian with advanced degrees',
     },
     criteriaEvaluation: [
       {
@@ -263,7 +266,7 @@ test('Complete CredibilityAnalysisResultSchema validation', async (t) => {
     t.equal(result.data.crediScore, 7.5, 'Should preserve credibility score');
     t.equal(
       result.data.overview.Platform,
-      'twitter',
+      'Twitter/X',
       'Should preserve nested data'
     );
     t.equal(
@@ -318,8 +321,8 @@ test('Schema descriptions are comprehensive', async (t) => {
     'Sampled Posts field should have description'
   );
   t.ok(
-    overviewShape['Focus Areas'].description,
-    'Focus Areas field should have description'
+    overviewShape['Focus Area'].description,
+    'Focus Area field should have description'
   );
   t.ok(
     overviewShape.Platform.description,
@@ -401,14 +404,13 @@ test('Type inference works correctly', async (t) => {
   const analysis: CredibilityAnalysisResult = {
     crediScore: 8.0,
     overview: {
-      'Sampled Posts': '25 posts',
-      'Focus Areas': 'Science communication, Research analysis',
-      'Analysis Date': '2024-01-15T10:30:00Z',
-      Platform: 'twitter',
-      'Profile Status': 'Active',
+      'Sampled Posts': '25 Posts',
+      'Focus Area': 'Science communication, Research analysis',
+      'Analysis Date': 'January 15, 2024',
+      Platform: 'Twitter/X',
     },
     strengths: {
-      'Excellent Sourcing': 'Always provides peer-reviewed sources',
+      'Source Citations': 'Always provides peer-reviewed sources',
     },
     criteriaEvaluation: [
       {

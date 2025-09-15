@@ -52,6 +52,101 @@ const formatStringWithLinks = (text: string): React.ReactNode => {
   return <div className="whitespace-pre-wrap">{text}</div>;
 };
 
+// Custom Overview Component
+const OverviewSection: React.FC<{ data: any }> = ({ data }) => {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  const sampledPosts = data['Sampled Posts'] || '';
+  const analysisDate = data['Analysis Date'] || '';
+  const platform = data['Platform'] || '';
+  const focusArea = data['Focus Area'] || '';
+
+  // Get platform icon/logo (smaller size to match tags)
+  const getPlatformIcon = (platform: string) => {
+    const platformLower = platform.toLowerCase();
+    if (platformLower.includes('twitter') || platformLower.includes('x')) {
+      return (
+        <div className="inline-flex items-center px-3 py-1.5 bg-black text-white rounded-full text-sm font-medium">
+          <span className="font-bold">𝕏</span>
+        </div>
+      );
+    } else if (platformLower.includes('linkedin')) {
+      return (
+        <div className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-full text-sm font-medium">
+          <span className="font-bold">in</span>
+        </div>
+      );
+    }
+    return (
+      <div className="inline-flex items-center px-3 py-1.5 bg-gray-400 text-white rounded-full text-sm font-medium">
+        <span className="font-bold">{platform.charAt(0)}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Tags row with platform icon after date */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Sampled Posts Tag */}
+        {sampledPosts && (
+          <div className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+            <svg
+              className="w-4 h-4 mr-1.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            Sampled {sampledPosts}
+          </div>
+        )}
+
+        {/* Analysis Date Tag */}
+        {analysisDate && (
+          <div className="inline-flex items-center px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+            <svg
+              className="w-4 h-4 mr-1.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            {analysisDate}
+          </div>
+        )}
+
+        {/* Platform Icon - now inline with tags */}
+        {platform && getPlatformIcon(platform)}
+      </div>
+
+      {/* Focus Area Section */}
+      {focusArea && (
+        <div>
+          <p className="text-gray-700 leading-relaxed">
+            <span className="font-medium text-gray-900">Focus Area:</span>{' '}
+            {focusArea}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function AnalysisVisualizer({
   sections,
 }: AnalysisVisualizerProps) {
@@ -193,10 +288,27 @@ export default function AnalysisVisualizer({
     return <span className="text-gray-700">{String(data)}</span>;
   };
 
+  // Find overview section data
+  const overviewSection = sections.find(
+    (section) => section.name.toLowerCase() === 'overview'
+  );
+
+  // Filter out overview section from regular sections
+  const regularSections = sections.filter(
+    (section) => section.name.toLowerCase() !== 'overview'
+  );
+
   return (
     <div className="space-y-6">
+      {/* Overview content at the top */}
+      {overviewSection && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <OverviewSection data={overviewSection.data} />
+        </div>
+      )}
+
       {/* Dynamic Section Rendering */}
-      {sections.map((section, index) => (
+      {regularSections.map((section, index) => (
         <div key={index} className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4 capitalize border-b border-gray-200 pb-2">
             {section.name.replace(/_/g, ' ')}

@@ -5,41 +5,35 @@ import { z } from 'zod';
  * These schemas guide LLM responses with detailed descriptions for each field
  */
 
-// Overview section schema with detailed field descriptions
+// Overview section schema with tabular format and user-friendly headers
 export const OverviewSectionSchema = z
   .object({
     'Sampled Posts': z
       .string()
       .describe(
-        "Total number of posts analyzed from the profile (e.g., '15 posts')"
+        "Total number of posts analyzed from the profile (e.g., '15 Posts')"
       ),
 
-    'Focus Areas': z
+    'Focus Area': z
       .string()
       .describe(
-        "Comma-separated list of main topics or themes identified in the analyzed content (e.g., 'Health advice, Nutrition claims, Personal anecdotes')"
+        "Main topics or themes identified in the analyzed content (e.g., 'Health advice, Nutrition claims, Personal anecdotes')"
       ),
 
     'Analysis Date': z
       .string()
       .describe(
-        "ISO timestamp of when the analysis was performed (e.g., '2024-01-15T10:30:00Z')"
+        "Human-readable date when the analysis was performed (e.g., 'January 15, 2024')"
       ),
 
     Platform: z
       .string()
       .describe(
-        "Social media platform where the profile was found (e.g., 'twitter', 'linkedin')"
-      ),
-
-    'Profile Status': z
-      .string()
-      .describe(
-        "Current status of the profile (e.g., 'Active', 'Verified', 'Private', 'Suspended')"
+        "Social media platform where the profile was found (e.g., 'Twitter/X', 'LinkedIn')"
       ),
   })
   .describe(
-    'High-level summary providing context about the analysis scope, timing, and profile characteristics'
+    'High-level summary providing context about the analysis scope, timing, and profile characteristics in a table format with Topic and Value columns'
   );
 
 // Strengths section schema for positive credibility indicators

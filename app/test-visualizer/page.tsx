@@ -9,11 +9,11 @@ export default function TestVisualizerPage() {
     {
       name: 'overview',
       data: {
-        'Sampled Posts': '50',
-        'Analysis Date': '2025-01-09',
-        Platform: 'Twitter/X',
-        'Profile Status': 'Active and Verified',
-        'Average Engagement': '125 interactions per post',
+        'Sampled Posts': '30 Posts',
+        'Focus Area':
+          'Personal development, productivity tips, and motivational content',
+        'Analysis Date': 'January 15, 2024',
+        Platform: 'LinkedIn',
       },
     },
     {

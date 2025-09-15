@@ -72,6 +72,8 @@ npm run format:check # Check formatting without changes
 npm test            # Run all tests with TAP
 ```
 
+Don't run npm run build every time you execute a task. Allow user to test once you are done executing the task.
+
 ### Database
 
 ```bash
