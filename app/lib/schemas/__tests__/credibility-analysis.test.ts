@@ -3,6 +3,7 @@ import {
   CredibilityAnalysisResultSchema,
   OverviewSectionSchema,
   StrengthsSectionSchema,
+  WeaknessesSection,
   CriteriaEvaluationSectionSchema,
   RepresentativePostsSectionSchema,
   ScoreJustificationSectionSchema,
@@ -47,10 +48,13 @@ test('OverviewSectionSchema validation', async (t) => {
 
 test('StrengthsSectionSchema validation', async (t) => {
   const validStrengths = {
+    'Content Quality': 'Demonstrates clear, well-structured analysis',
     'Source Citations':
       'Frequently cites peer-reviewed studies and medical journals',
     'Balanced Perspective':
       'Acknowledges limitations and uncertainties in health advice',
+    'Communication Style': 'Uses professional and respectful tone',
+    'Evidence Usage': 'Consistently supports claims with research data',
   };
 
   const result = StrengthsSectionSchema.safeParse(validStrengths);
@@ -59,12 +63,16 @@ test('StrengthsSectionSchema validation', async (t) => {
   if (result.success) {
     t.equal(
       Object.keys(result.data).length,
-      2,
+      5,
       'Should preserve all strength categories'
     );
     t.ok(
       result.data['Source Citations'],
       'Should preserve source citations strength'
+    );
+    t.ok(
+      result.data['Content Quality'],
+      'Should preserve content quality strength'
     );
   }
 
@@ -72,6 +80,47 @@ test('StrengthsSectionSchema validation', async (t) => {
   const emptyStrengths = {};
   const emptyResult = StrengthsSectionSchema.safeParse(emptyStrengths);
   t.ok(emptyResult.success, 'Empty strengths object should be valid');
+});
+
+test('WeaknessesSection validation', async (t) => {
+  const validWeaknesses = {
+    'Content Quality': 'Some posts could benefit from more structured analysis and clearer organization',
+    'Source Citations': 'Opportunities exist to improve consistency in citing credible sources for health claims',
+    'Balanced Perspective': 'Could enhance credibility by acknowledging limitations and alternative viewpoints more frequently',
+    'Communication Style': 'Occasional use of emotional language where data-driven arguments would be more effective',
+    'Evidence Usage': 'Some claims would benefit from stronger research support and more robust evidence',
+  };
+
+  const result = WeaknessesSection.safeParse(validWeaknesses);
+  t.ok(result.success, 'Valid weaknesses should pass validation');
+
+  if (result.success) {
+    t.equal(
+      Object.keys(result.data).length,
+      5,
+      'Should preserve all weakness categories'
+    );
+    t.ok(
+      result.data['Source Citations'],
+      'Should preserve source citations weakness'
+    );
+    t.ok(
+      result.data['Content Quality'],
+      'Should preserve content quality weakness'
+    );
+  }
+
+  // Test empty object (should be valid)
+  const emptyWeaknesses = {};
+  const emptyResult = WeaknessesSection.safeParse(emptyWeaknesses);
+  t.ok(emptyResult.success, 'Empty weaknesses object should be valid');
+
+  // Test partial weaknesses (should be valid)
+  const partialWeaknesses = {
+    'Source Citations': 'Could improve citation practices',
+  };
+  const partialResult = WeaknessesSection.safeParse(partialWeaknesses);
+  t.ok(partialResult.success, 'Partial weaknesses object should be valid');
 });
 
 test('CriteriaEvaluationSectionSchema validation', async (t) => {
@@ -221,10 +270,6 @@ test('Complete CredibilityAnalysisResultSchema validation', async (t) => {
       'Analysis Date': 'January 15, 2024',
       Platform: 'Twitter/X',
     },
-    strengths: {
-      'Source Citations': 'Regularly cites peer-reviewed research',
-      'Expert Credentials': 'Licensed dietitian with advanced degrees',
-    },
     criteriaEvaluation: [
       {
         criterion: 'Unnecessary Complexity',
@@ -250,6 +295,14 @@ test('Complete CredibilityAnalysisResultSchema validation', async (t) => {
         reasoning: 'Demonstrates evidence-based approach to nutrition advice',
       },
     ],
+    strengths: {
+      'Source Citations': 'Regularly cites peer-reviewed research',
+      'Content Quality': 'Demonstrates clear expertise and structured analysis',
+    },
+    weaknesses: {
+      'Communication Style': 'Occasional use of overly technical language that could be simplified',
+      'Evidence Usage': 'Some claims could benefit from additional research support',
+    },
     scoreJustification: {
       'Key Factors': [
         'Strong scientific background',
@@ -300,6 +353,10 @@ test('Schema descriptions are comprehensive', async (t) => {
   t.ok(
     StrengthsSectionSchema.description,
     'Strengths schema should have description'
+  );
+  t.ok(
+    WeaknessesSection.description,
+    'Weaknesses schema should have description'
   );
   t.ok(
     CriteriaEvaluationSectionSchema.description,
@@ -409,9 +466,6 @@ test('Type inference works correctly', async (t) => {
       'Analysis Date': 'January 15, 2024',
       Platform: 'Twitter/X',
     },
-    strengths: {
-      'Source Citations': 'Always provides peer-reviewed sources',
-    },
     criteriaEvaluation: [
       {
         criterion: 'Lack of Sourcing',
@@ -429,6 +483,9 @@ test('Type inference works correctly', async (t) => {
         reasoning: 'Exemplifies evidence-based communication style',
       },
     ],
+    strengths: {
+      'Source Citations': 'Always provides peer-reviewed sources',
+    },
     scoreJustification: {
       'Key Factors': [
         'Exceptional sourcing quality',
@@ -456,4 +513,108 @@ test('Type inference works correctly', async (t) => {
     Array.isArray(analysis.representativePosts),
     'representativePosts should be typed as array'
   );
+});
+
+test('Optional strengths and weaknesses sections', async (t) => {
+  // Test analysis without strengths section
+  const analysisWithoutStrengths: CredibilityAnalysisResult = {
+    crediScore: 5.0,
+    overview: {
+      'Sampled Posts': '10 Posts',
+      'Focus Area': 'General content',
+      'Analysis Date': 'January 15, 2024',
+      Platform: 'Twitter/X',
+    },
+    criteriaEvaluation: [
+      {
+        criterion: 'Unnecessary Complexity',
+        score: 5.0,
+        status: 'adequate',
+        evaluation: 'Average complexity level',
+      },
+    ],
+    representativePosts: [
+      {
+        category: 'General',
+        content: '[Jan 10, 2024][]\nGeneral post content',
+        reasoning: 'Representative of overall content quality',
+      },
+    ],
+    weaknesses: {
+      'Content Quality': 'Could improve structure and clarity',
+    },
+    scoreJustification: {
+      'Key Factors': ['Average content quality'],
+    },
+  };
+
+  const resultWithoutStrengths = CredibilityAnalysisResultSchema.safeParse(analysisWithoutStrengths);
+  t.ok(resultWithoutStrengths.success, 'Analysis without strengths should be valid');
+
+  // Test analysis without weaknesses section
+  const analysisWithoutWeaknesses: CredibilityAnalysisResult = {
+    crediScore: 9.0,
+    overview: {
+      'Sampled Posts': '15 Posts',
+      'Focus Area': 'High-quality content',
+      'Analysis Date': 'January 15, 2024',
+      Platform: 'LinkedIn',
+    },
+    criteriaEvaluation: [
+      {
+        criterion: 'Lack of Sourcing',
+        score: 9.0,
+        status: 'exemplary',
+        evaluation: 'Excellent sourcing practices',
+      },
+    ],
+    representativePosts: [
+      {
+        category: 'Educational',
+        content: '[Jan 10, 2024][]\nHigh-quality educational content',
+        reasoning: 'Demonstrates excellent practices',
+      },
+    ],
+    strengths: {
+      'Source Citations': 'Consistently provides excellent sources',
+    },
+    scoreJustification: {
+      'Key Factors': ['Exceptional content quality'],
+    },
+  };
+
+  const resultWithoutWeaknesses = CredibilityAnalysisResultSchema.safeParse(analysisWithoutWeaknesses);
+  t.ok(resultWithoutWeaknesses.success, 'Analysis without weaknesses should be valid');
+
+  // Test analysis without both strengths and weaknesses
+  const analysisWithoutBoth: CredibilityAnalysisResult = {
+    crediScore: 6.0,
+    overview: {
+      'Sampled Posts': '12 Posts',
+      'Focus Area': 'Mixed content',
+      'Analysis Date': 'January 15, 2024',
+      Platform: 'Twitter/X',
+    },
+    criteriaEvaluation: [
+      {
+        criterion: 'Unnecessary Complexity',
+        score: 6.0,
+        status: 'adequate',
+        evaluation: 'Adequate complexity level',
+      },
+    ],
+    representativePosts: [
+      {
+        category: 'Mixed',
+        content: '[Jan 10, 2024][]\nMixed quality content',
+        reasoning: 'Representative of overall patterns',
+      },
+    ],
+    scoreJustification: {
+      'Key Factors': ['Mixed content quality'],
+    },
+  };
+
+  const resultWithoutBoth = CredibilityAnalysisResultSchema.safeParse(analysisWithoutBoth);
+  t.ok(resultWithoutBoth.success, 'Analysis without both strengths and weaknesses should be valid');
 });

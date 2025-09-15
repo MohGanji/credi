@@ -39,6 +39,12 @@ export const OverviewSectionSchema = z
 // Strengths section schema for positive credibility indicators
 export const StrengthsSectionSchema = z
   .object({
+    'Content Quality': z
+      .string()
+      .optional()
+      .describe(
+        'Examples of clear, well-structured content that demonstrates expertise and thoughtful analysis'
+      ),
     'Source Citations': z
       .string()
       .optional()
@@ -51,31 +57,57 @@ export const StrengthsSectionSchema = z
       .describe(
         'Evidence of presenting multiple viewpoints or acknowledging limitations'
       ),
-    'Expert Credentials': z
-      .string()
-      .optional()
-      .describe(
-        'Relevant qualifications or expertise demonstrated in the content'
-      ),
-    'Transparent Communication': z
+    'Communication Style': z
       .string()
       .optional()
       .describe('Clear, honest communication style without hidden agendas'),
-    'Evidence-Based Claims': z
+    'Evidence Usage': z
       .string()
       .optional()
       .describe(
         'Use of data, research, or factual evidence to support statements'
       ),
-    'Constructive Tone': z
+  })
+  .describe(
+    'Positive credibility indicators found in the profile, with specific examples of how each strength manifests in the content. This section is optional when no significant strengths are identified.'
+  );
+
+// Weaknesses section schema for areas needing improvement
+export const WeaknessesSection = z
+  .object({
+    'Content Quality': z
       .string()
       .optional()
       .describe(
-        'Professional, respectful communication that builds understanding'
+        'Areas where content clarity, structure, or depth could be improved, presented in an informative and constructive manner'
+      ),
+    'Source Citations': z
+      .string()
+      .optional()
+      .describe(
+        'Opportunities to improve sourcing practices and reference credible authorities, explained constructively'
+      ),
+    'Balanced Perspective': z
+      .string()
+      .optional()
+      .describe(
+        'Areas where presenting multiple viewpoints or acknowledging limitations could enhance credibility, framed as improvement opportunities'
+      ),
+    'Communication Style': z
+      .string()
+      .optional()
+      .describe(
+        'Communication patterns that could be refined for better clarity and professionalism, presented educationally'
+      ),
+    'Evidence Usage': z
+      .string()
+      .optional()
+      .describe(
+        'Opportunities to strengthen claims with more robust data or research support, framed as constructive guidance'
       ),
   })
   .describe(
-    'Positive credibility indicators found in the profile, with specific examples of how each strength manifests in the content'
+    'Areas for improvement aligned with the 8 credibility criteria, using informative and constructive language that focuses on awareness and improvement opportunities rather than criticism. This section is optional when no significant weaknesses are identified.'
   );
 
 // Individual criteria evaluation schema with scoring and respectful status levels
@@ -205,16 +237,18 @@ export const CredibilityAnalysisResultSchema = z
 
     overview: OverviewSectionSchema,
 
-    strengths: StrengthsSectionSchema,
-
     criteriaEvaluation: CriteriaEvaluationSectionSchema,
 
     representativePosts: RepresentativePostsSectionSchema,
 
+    strengths: StrengthsSectionSchema.optional(),
+
+    weaknesses: WeaknessesSection.optional(),
+
     scoreJustification: ScoreJustificationSectionSchema,
   })
   .describe(
-    'Complete credibility analysis result containing a numerical score and detailed breakdown of all evaluation criteria, strengths, representative content, and score justification'
+    'Complete credibility analysis result with sections ordered as: Overview, Criteria Evaluation, Representative Posts, Strengths, Weaknesses, Score Justification. Both strengths and weaknesses sections are optional when no significant patterns are identified.'
   );
 
 // Simple schema for scoring results
@@ -299,6 +333,7 @@ export type CredibilityAnalysisResult = z.infer<
 export type ScoringResult = z.infer<typeof ScoringResultSchema>;
 export type OverviewSection = z.infer<typeof OverviewSectionSchema>;
 export type StrengthsSection = z.infer<typeof StrengthsSectionSchema>;
+export type WeaknessesSection = z.infer<typeof WeaknessesSection>;
 export type CriteriaEvaluationSection = z.infer<
   typeof CriteriaEvaluationSectionSchema
 >;

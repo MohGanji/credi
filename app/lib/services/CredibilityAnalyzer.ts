@@ -615,18 +615,17 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
       crediScore: structuredResult.crediScore,
       criteriaCount: structuredResult.criteriaEvaluation.length,
       representativePostsCount: structuredResult.representativePosts.length,
+      hasStrengths: !!structuredResult.strengths,
+      hasWeaknesses: !!structuredResult.weaknesses,
       metadata,
     });
 
     // Convert structured result to the sections format expected by the database
-    const sections = [
+    // Order: Overview, Criteria Evaluation, Representative Posts, Strengths, Weaknesses, Score Justification
+    const sections: Array<{ name: string; data: any }> = [
       {
         name: 'overview',
         data: structuredResult.overview,
-      },
-      {
-        name: 'strengths',
-        data: structuredResult.strengths,
       },
       {
         name: 'criteria_evaluation',
@@ -636,11 +635,29 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
         name: 'representative_posts',
         data: structuredResult.representativePosts,
       },
-      {
-        name: 'score_justification',
-        data: structuredResult.scoreJustification,
-      },
     ];
+
+    // Add optional strengths section if present
+    if (structuredResult.strengths) {
+      sections.push({
+        name: 'strengths',
+        data: structuredResult.strengths,
+      });
+    }
+
+    // Add optional weaknesses section if present
+    if (structuredResult.weaknesses) {
+      sections.push({
+        name: 'weaknesses',
+        data: structuredResult.weaknesses,
+      });
+    }
+
+    // Add score justification section
+    sections.push({
+      name: 'score_justification',
+      data: structuredResult.scoreJustification,
+    });
 
     const finalResult = {
       profileUrl: '', // Will be set by caller
@@ -666,7 +683,8 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
       finalScore: finalResult.crediScore,
       sectionCount: sections.length,
       overviewFields: Object.keys(structuredResult.overview).length,
-      strengthsFields: Object.keys(structuredResult.strengths).length,
+      strengthsFields: structuredResult.strengths ? Object.keys(structuredResult.strengths).length : 0,
+      weaknessesFields: structuredResult.weaknesses ? Object.keys(structuredResult.weaknesses).length : 0,
       criteriaEvaluations: structuredResult.criteriaEvaluation.length,
       representativePosts: structuredResult.representativePosts.length,
       scoreJustificationFields: Object.keys(structuredResult.scoreJustification)
@@ -738,27 +756,15 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
         {
           name: 'overview',
           data: {
-            'Sampled Posts': '10',
-            'Focus Areas': 'Content Quality, Source Citations',
-            'Analysis Date': new Date().toISOString(),
-            Platform: profileInfo.platform || 'unknown',
-            'Profile Status': 'Active',
+            'Sampled Posts': '10 Posts',
+            'Focus Area': 'Content Quality, Source Citations, Evidence-based practices',
+            'Analysis Date': new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            Platform: profileInfo.platform === 'twitter' ? 'Twitter/X' : (profileInfo.platform || 'unknown'),
           },
         },
         {
           name: 'criteria_evaluation',
           data: mockCriteriaEvaluation,
-        },
-        {
-          name: 'strengths',
-          data: {
-            'Source Citations':
-              'Consistently references credible sources and studies',
-            'Balanced Perspective':
-              'Presents multiple viewpoints on complex topics',
-            'Transparent Communication':
-              'Clear about limitations and uncertainties',
-          },
         },
         {
           name: 'representative_posts',
@@ -771,6 +777,26 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
                 'Demonstrates commitment to factual accuracy and educational value',
             },
           ],
+        },
+        {
+          name: 'strengths',
+          data: {
+            'Content Quality': 'Demonstrates clear expertise and well-structured analysis',
+            'Source Citations':
+              'Consistently references credible sources and studies',
+            'Balanced Perspective':
+              'Presents multiple viewpoints on complex topics',
+            'Communication Style':
+              'Clear about limitations and uncertainties',
+            'Evidence Usage': 'Supports claims with appropriate research and data',
+          },
+        },
+        {
+          name: 'weaknesses',
+          data: {
+            'Communication Style': 'Occasional overconfidence in presenting certain viewpoints could be tempered with more acknowledgment of uncertainty',
+            'Source Citations': 'Could improve consistency in citing primary sources for all claims made',
+          },
         },
         {
           name: 'score_justification',

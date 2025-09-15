@@ -10,6 +10,8 @@ test('CredibilityAnalyzer - Configurable Execution Strategies', async (t) => {
     process.env.AGENT_DEFAULT_MODEL = 'claude-3-haiku-20240307';
     process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
     process.env.MOCK_AGENT_CALL = 'false';
+    process.env.CREDIBILITY_ANALYSIS_PROMPT = 'test-analysis-prompt';
+    process.env.CREDIBILITY_SCORING_PROMPT = 'test-scoring-prompt';
 
     const analyzer = new CredibilityAnalyzer();
     const config = analyzer.checkConfiguration();
@@ -37,6 +39,8 @@ test('CredibilityAnalyzer - Configurable Execution Strategies', async (t) => {
     process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
     process.env.OPENAI_API_KEY = 'test-openai-key';
     process.env.MOCK_AGENT_CALL = 'false';
+    process.env.CREDIBILITY_ANALYSIS_PROMPT = 'test-analysis-prompt';
+    process.env.CREDIBILITY_SCORING_PROMPT = 'test-scoring-prompt';
 
     const analyzer = new CredibilityAnalyzer();
     const config = analyzer.checkConfiguration();
@@ -73,6 +77,8 @@ test('CredibilityAnalyzer - Configurable Execution Strategies', async (t) => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.GOOGLE_API_KEY;
     process.env.MOCK_AGENT_CALL = 'false';
+    process.env.CREDIBILITY_ANALYSIS_PROMPT = 'test-analysis-prompt';
+    process.env.CREDIBILITY_SCORING_PROMPT = 'test-scoring-prompt';
 
     const analyzer = new CredibilityAnalyzer();
     const config = analyzer.checkConfiguration();
