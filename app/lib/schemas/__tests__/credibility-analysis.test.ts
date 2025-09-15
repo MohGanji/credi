@@ -84,11 +84,16 @@ test('StrengthsSectionSchema validation', async (t) => {
 
 test('WeaknessesSection validation', async (t) => {
   const validWeaknesses = {
-    'Content Quality': 'Some posts could benefit from more structured analysis and clearer organization',
-    'Source Citations': 'Opportunities exist to improve consistency in citing credible sources for health claims',
-    'Balanced Perspective': 'Could enhance credibility by acknowledging limitations and alternative viewpoints more frequently',
-    'Communication Style': 'Occasional use of emotional language where data-driven arguments would be more effective',
-    'Evidence Usage': 'Some claims would benefit from stronger research support and more robust evidence',
+    'Content Quality':
+      'Some posts could benefit from more structured analysis and clearer organization',
+    'Source Citations':
+      'Opportunities exist to improve consistency in citing credible sources for health claims',
+    'Balanced Perspective':
+      'Could enhance credibility by acknowledging limitations and alternative viewpoints more frequently',
+    'Communication Style':
+      'Occasional use of emotional language where data-driven arguments would be more effective',
+    'Evidence Usage':
+      'Some claims would benefit from stronger research support and more robust evidence',
   };
 
   const result = WeaknessesSection.safeParse(validWeaknesses);
@@ -300,8 +305,10 @@ test('Complete CredibilityAnalysisResultSchema validation', async (t) => {
       'Content Quality': 'Demonstrates clear expertise and structured analysis',
     },
     weaknesses: {
-      'Communication Style': 'Occasional use of overly technical language that could be simplified',
-      'Evidence Usage': 'Some claims could benefit from additional research support',
+      'Communication Style':
+        'Occasional use of overly technical language that could be simplified',
+      'Evidence Usage':
+        'Some claims could benefit from additional research support',
     },
     scoreJustification: {
       'Key Factors': [
@@ -548,8 +555,13 @@ test('Optional strengths and weaknesses sections', async (t) => {
     },
   };
 
-  const resultWithoutStrengths = CredibilityAnalysisResultSchema.safeParse(analysisWithoutStrengths);
-  t.ok(resultWithoutStrengths.success, 'Analysis without strengths should be valid');
+  const resultWithoutStrengths = CredibilityAnalysisResultSchema.safeParse(
+    analysisWithoutStrengths
+  );
+  t.ok(
+    resultWithoutStrengths.success,
+    'Analysis without strengths should be valid'
+  );
 
   // Test analysis without weaknesses section
   const analysisWithoutWeaknesses: CredibilityAnalysisResult = {
@@ -583,8 +595,13 @@ test('Optional strengths and weaknesses sections', async (t) => {
     },
   };
 
-  const resultWithoutWeaknesses = CredibilityAnalysisResultSchema.safeParse(analysisWithoutWeaknesses);
-  t.ok(resultWithoutWeaknesses.success, 'Analysis without weaknesses should be valid');
+  const resultWithoutWeaknesses = CredibilityAnalysisResultSchema.safeParse(
+    analysisWithoutWeaknesses
+  );
+  t.ok(
+    resultWithoutWeaknesses.success,
+    'Analysis without weaknesses should be valid'
+  );
 
   // Test analysis without both strengths and weaknesses
   const analysisWithoutBoth: CredibilityAnalysisResult = {
@@ -615,6 +632,10 @@ test('Optional strengths and weaknesses sections', async (t) => {
     },
   };
 
-  const resultWithoutBoth = CredibilityAnalysisResultSchema.safeParse(analysisWithoutBoth);
-  t.ok(resultWithoutBoth.success, 'Analysis without both strengths and weaknesses should be valid');
+  const resultWithoutBoth =
+    CredibilityAnalysisResultSchema.safeParse(analysisWithoutBoth);
+  t.ok(
+    resultWithoutBoth.success,
+    'Analysis without both strengths and weaknesses should be valid'
+  );
 });

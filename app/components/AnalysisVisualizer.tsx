@@ -224,7 +224,8 @@ export default function AnalysisVisualizer({
                         key={key}
                         className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200"
                       >
-                        {key === 'criterion' && typeof item[key] === 'string' ? (
+                        {key === 'criterion' &&
+                        typeof item[key] === 'string' ? (
                           <span>No {item[key]}</span>
                         ) : (
                           <RenderData data={item[key]} depth={depth + 1} />

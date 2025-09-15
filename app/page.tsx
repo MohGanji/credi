@@ -131,12 +131,13 @@ export default function Home() {
                 value={url}
                 onChange={handleUrlChange}
                 placeholder="https://twitter.com/username or https://linkedin.com/in/username"
-                className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${validationResult?.isValid === false
-                  ? 'border-red-300'
-                  : validationResult?.isValid === true
-                    ? 'border-green-300'
-                    : 'border-gray-300'
-                  }`}
+                className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationResult?.isValid === false
+                    ? 'border-red-300'
+                    : validationResult?.isValid === true
+                      ? 'border-green-300'
+                      : 'border-gray-300'
+                }`}
               />
               {validationResult?.platform && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">

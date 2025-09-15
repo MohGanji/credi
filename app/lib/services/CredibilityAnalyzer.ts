@@ -683,8 +683,12 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
       finalScore: finalResult.crediScore,
       sectionCount: sections.length,
       overviewFields: Object.keys(structuredResult.overview).length,
-      strengthsFields: structuredResult.strengths ? Object.keys(structuredResult.strengths).length : 0,
-      weaknessesFields: structuredResult.weaknesses ? Object.keys(structuredResult.weaknesses).length : 0,
+      strengthsFields: structuredResult.strengths
+        ? Object.keys(structuredResult.strengths).length
+        : 0,
+      weaknessesFields: structuredResult.weaknesses
+        ? Object.keys(structuredResult.weaknesses).length
+        : 0,
       criteriaEvaluations: structuredResult.criteriaEvaluation.length,
       representativePosts: structuredResult.representativePosts.length,
       scoreJustificationFields: Object.keys(structuredResult.scoreJustification)
@@ -757,9 +761,17 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
           name: 'overview',
           data: {
             'Sampled Posts': '10 Posts',
-            'Focus Area': 'Content Quality, Source Citations, Evidence-based practices',
-            'Analysis Date': new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-            Platform: profileInfo.platform === 'twitter' ? 'Twitter/X' : (profileInfo.platform || 'unknown'),
+            'Focus Area':
+              'Content Quality, Source Citations, Evidence-based practices',
+            'Analysis Date': new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            }),
+            Platform:
+              profileInfo.platform === 'twitter'
+                ? 'Twitter/X'
+                : profileInfo.platform || 'unknown',
           },
         },
         {
@@ -781,21 +793,24 @@ ${post.links?.length > 0 ? 'Links: ' + post.links.join(', ') : ''}
         {
           name: 'strengths',
           data: {
-            'Content Quality': 'Demonstrates clear expertise and well-structured analysis',
+            'Content Quality':
+              'Demonstrates clear expertise and well-structured analysis',
             'Source Citations':
               'Consistently references credible sources and studies',
             'Balanced Perspective':
               'Presents multiple viewpoints on complex topics',
-            'Communication Style':
-              'Clear about limitations and uncertainties',
-            'Evidence Usage': 'Supports claims with appropriate research and data',
+            'Communication Style': 'Clear about limitations and uncertainties',
+            'Evidence Usage':
+              'Supports claims with appropriate research and data',
           },
         },
         {
           name: 'weaknesses',
           data: {
-            'Communication Style': 'Occasional overconfidence in presenting certain viewpoints could be tempered with more acknowledgment of uncertainty',
-            'Source Citations': 'Could improve consistency in citing primary sources for all claims made',
+            'Communication Style':
+              'Occasional overconfidence in presenting certain viewpoints could be tempered with more acknowledgment of uncertainty',
+            'Source Citations':
+              'Could improve consistency in citing primary sources for all claims made',
           },
         },
         {
