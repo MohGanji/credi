@@ -40,6 +40,7 @@ export default function Home() {
     null
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = e.target.value;
@@ -81,11 +82,12 @@ export default function Home() {
       }
 
       setAnalysisResult(data);
+      setIsRedirecting(true);
 
       // Redirect to results page after successful analysis creation
       setTimeout(() => {
         router.push(`/results/${data.analysisId}`);
-      }, 2000); // Give user time to see the success message
+      }, 800); // Shorter delay for better UX
     } catch (error) {
       console.error('Error starting analysis:', error);
       // Handle network or other errors
@@ -96,7 +98,9 @@ export default function Home() {
         type: 'network_error',
       });
     } finally {
-      setIsAnalyzing(false);
+      if (!isRedirecting) {
+        setIsAnalyzing(false);
+      }
     }
   };
 
@@ -127,13 +131,12 @@ export default function Home() {
                 value={url}
                 onChange={handleUrlChange}
                 placeholder="https://twitter.com/username or https://linkedin.com/in/username"
-                className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  validationResult?.isValid === false
+                className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${validationResult?.isValid === false
                     ? 'border-red-300'
                     : validationResult?.isValid === true
                       ? 'border-green-300'
                       : 'border-gray-300'
-                }`}
+                  }`}
               />
               {validationResult?.platform && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -207,15 +210,76 @@ export default function Home() {
             <div className="flex justify-center mt-6">
               <button
                 onClick={handleAnalyze}
-                disabled={isAnalyzing}
+                disabled={isAnalyzing || isRedirecting}
                 className="bg-green-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isAnalyzing ? 'Starting Analysis...' : 'Analyze Profile'}
+                {isRedirecting
+                  ? 'Opening Results...'
+                  : isAnalyzing
+                    ? 'Analyzing...'
+                    : 'Analyze Profile'}
               </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* Loading Animation */}
+      {isAnalyzing && (
+        <div className="bg-white rounded-lg shadow-md p-8 mt-8">
+          <div className="flex flex-col items-center space-y-4">
+            {/* Spinner Animation */}
+            <div className="relative">
+              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+            </div>
+
+            {/* Loading Text */}
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Analyzing Profile
+              </h3>
+              <p className="text-gray-600 mb-1">
+                We&apos;re analyzing the profile&apos;s content for credibility
+                indicators
+              </p>
+              <p className="text-sm text-gray-500">
+                This usually takes around a minute to complete
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message for Redirect */}
+      {isRedirecting && (
+        <div className="bg-white rounded-lg shadow-md p-8 mt-8">
+          <div className="flex items-center justify-center space-x-3">
+            <div className="flex-shrink-0">
+              <svg
+                className="h-8 w-8 text-green-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-green-800">
+                Analysis Complete!
+              </h3>
+              <p className="text-sm text-green-600">
+                Redirecting to your results...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Analysis Error Message */}
       {analysisError && (
@@ -274,74 +338,6 @@ export default function Home() {
               >
                 Try Another Profile
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Analysis Success Message */}
-      {analysisResult && (
-        <div className="bg-white rounded-lg shadow-md p-8 mt-8">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="flex-shrink-0">
-              <svg
-                className="h-8 w-8 text-green-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-green-800">
-                Analysis Started Successfully!
-              </h3>
-              <p className="text-sm text-green-600">{analysisResult.message}</p>
-            </div>
-          </div>
-
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-green-800">
-                  Analysis ID
-                </p>
-                <p className="text-sm text-green-700 font-mono bg-white px-2 py-1 rounded border">
-                  {analysisResult.analysisId}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-green-800">Profile</p>
-                <p className="text-sm text-green-700">
-                  {analysisResult.analysis.username} on{' '}
-                  {analysisResult.analysis.platform}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-green-800">Status</p>
-                <p className="text-sm text-green-700 capitalize">
-                  {analysisResult.analysis.status}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-green-800">Created</p>
-                <p className="text-sm text-green-700">
-                  {new Date(analysisResult.analysis.createdAt).toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-green-200">
-              <p className="text-xs text-green-600">
-                <strong>For testing:</strong> Check your database for analysis
-                record with ID: {analysisResult.analysisId}
-              </p>
             </div>
           </div>
         </div>
